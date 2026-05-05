@@ -75,7 +75,7 @@ window.Scorer = window.Scorer || {};
           <div class="view-header__intro">
             <span class="view-eyebrow">05 · History</span>
             <h1>Run <span class="highlight">history</span></h1>
-            <p class="view-lede">Past scoring runs per ground truth manager. Track how ingestion accuracy changes over time.</p>
+            <p class="view-lede">Past validation runs per ground truth document. Track how ingestion accuracy changes over time.</p>
           </div>
         </div>
         <div class="empty">
@@ -92,8 +92,8 @@ window.Scorer = window.Scorer || {};
       <div class="view-header">
         <div class="view-header__intro">
           <span class="view-eyebrow">05 · History</span>
-          <h1>Run history, <span class="highlight">${escapeHtml(m.name)}</span></h1>
-          <p class="view-lede">Each row is one scoring run against this ground truth manager. Watch the trend to see if ingestion accuracy is improving or regressing.</p>
+          <h1>Validation runs, <span class="highlight">${escapeHtml(m.name)}</span></h1>
+          <p class="view-lede">Each row is one validation run against this ground truth document. Watch the trend to see if ingestion accuracy is improving or regressing.</p>
         </div>
         <div style="display:flex; gap:var(--space-3); align-items:center;">
           <span class="chip-group__label">Manager</span>

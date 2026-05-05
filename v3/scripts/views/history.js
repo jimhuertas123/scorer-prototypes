@@ -148,7 +148,7 @@ window.Scorer = window.Scorer || {};
         <aside class="inspector__pane">
           <div class="inspector__pane-head">
             <div class="inspector__pane-title">
-              <strong>Past runs</strong>
+              <strong>Past validation runs</strong>
               <span>${rows.length} total</span>
             </div>
           </div>
@@ -156,7 +156,7 @@ window.Scorer = window.Scorer || {};
             ${rows.length === 0 ? `
               <div class="detail-empty" style="padding: var(--space-8) var(--space-4);">
                 <div class="detail-empty__title">No runs yet</div>
-                <div class="detail-empty__body">Score a comparison to populate this manager's trend.</div>
+                <div class="detail-empty__body">Run a validation to populate this document.s trend.</div>
               </div>
             ` : sorted.map((row, i) => renderListItem(row, sorted[i + 1])).join('')}
           </div>

@@ -56,7 +56,7 @@ window.Scorer = window.Scorer || {};
         <div class="detail__hero-eyebrow">
           <span>${escapeHtml(r.id)}</span>
           <span>·</span>
-          <span>${escapeHtml(m.name)}, ${m.state}</span>
+          <span>${escapeHtml(r.referenceLabel || (m.name + ', ' + m.state))}</span>
         </div>
         <div style="display: flex; align-items: baseline; gap: var(--space-4);">
           <div class="detail__hero-title" style="font-family: var(--font-mono); font-size: 3rem; color: var(--accent);">${fmtPct(accuracy)}</div>
@@ -66,7 +66,37 @@ window.Scorer = window.Scorer || {};
             <span class="detail__pill detail__pill--extra">${r.buckets.extra.length} extra</span>
           </div>
         </div>
-        <div class="detail__hero-sub">${escapeHtml(r.scope.label)} · ${r.inputFormat.toUpperCase()} input · by ${escapeHtml(r.ranBy)}</div>
+        <div class="detail__hero-sub">vs ${escapeHtml(r.candidateLabel || r.inputFormat.toUpperCase() + ' input')} · ${escapeHtml(r.scope.label)} · by ${escapeHtml(r.ranBy)}</div>
+      </div>
+      ${renderPhases(r)}
+    `;
+  }
+
+  function renderPhases(r) {
+    if (!r.phases || r.phases.length === 0) return '';
+    const dot = (status) => {
+      const c = status === 'completed' ? 'var(--status-completed)' : status === 'failed' ? 'var(--status-failed)' : 'var(--status-cancelled)';
+      return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};"></span>`;
+    };
+    return `
+      <div class="detail__section">
+        <div class="detail__section-head">
+          <span class="detail__section-title">Pipeline</span>
+          <span class="detail__section-meta">three phases</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3);">
+          ${r.phases.map((p, i) => `
+            <div style="padding: var(--space-3) var(--space-4); border: 1px solid var(--card-border-strong); border-radius: var(--radius-sm);">
+              <div style="display:flex; align-items:center; gap: var(--space-2); margin-bottom: var(--space-2);">
+                ${dot(p.status)}
+                <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-tertiary); font-weight: 500;">P${i + 1} · ${p.kind === 'llm' ? 'LLM' : 'det'}</span>
+                <span style="margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary);">${p.durationMs}ms</span>
+              </div>
+              <div style="font-size: var(--fs-sm); font-weight: 700; color: var(--text-primary); letter-spacing: var(--tracking-tight); margin-bottom: 4px;">${escapeHtml(p.label)}</div>
+              <div style="font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5;">${escapeHtml(p.summary)}</div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
   }
@@ -147,7 +177,7 @@ window.Scorer = window.Scorer || {};
       <div class="view-header">
         <div class="view-header__intro">
           <span class="view-eyebrow">04 · Report</span>
-          <h1>Run <span class="highlight">${r.id}</span></h1>
+          <h1>Validation run <span class="highlight">${r.id}</span></h1>
         </div>
         <div style="display:flex; gap:var(--space-2);">
           <button class="btn btn--ghost" data-action="back">Back</button>

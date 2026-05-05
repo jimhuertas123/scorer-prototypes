@@ -118,9 +118,9 @@ window.Scorer = window.Scorer || {};
     root.innerHTML = `
       <div class="view-header">
         <div class="view-header__intro">
-          <span class="view-eyebrow">01 · Truth Library</span>
-          <h1>Curated <span class="highlight">source of truth</span>, ${data.MANAGERS.filter(m => m.isGroundTruth).length} managers</h1>
-          <p class="view-lede">Hand corrected reference managers QA uses to evaluate ingestion accuracy. Open one to score against, or fork from any ingested manager to start a new ground truth.</p>
+          <span class="view-eyebrow">01 · Documents</span>
+          <h1>Ground truth <span class="highlight">documents</span>, ${data.MANAGERS.filter(m => m.isGroundTruth).length} curated</h1>
+          <p class="view-lede">Hand corrected reference documents QA uses to validate ingestion accuracy. Open one to validate against, or fork from any ingested document to start a new ground truth.</p>
         </div>
         <div style="display:flex; gap:var(--space-2);">
           <button class="btn" data-action="fork">Fork existing</button>

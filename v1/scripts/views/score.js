@@ -103,8 +103,8 @@ window.Scorer = window.Scorer || {};
       <div class="input-card">
         <div class="input-card__head">
           <div class="panel__title">
-            <strong>Extraction input</strong>
-            <span>paste raw output to score</span>
+            <strong>Candidate</strong>
+            <span>paste extraction to validate</span>
           </div>
           <div class="format-toggle" role="tablist" aria-label="Input format">
             ${['text', 'md', 'json'].map(f => `
@@ -153,8 +153,8 @@ window.Scorer = window.Scorer || {};
       <div class="panel">
         <div class="panel__head">
           <div class="panel__title">
-            <strong>Validation set</strong>
-            <span>pick a ground truth manager</span>
+            <strong>Reference</strong>
+            <span>pick a ground truth document</span>
           </div>
           <div class="search" style="width:240px;">
             <span class="search__icon">⌕</span>
@@ -401,9 +401,9 @@ window.Scorer = window.Scorer || {};
     root.innerHTML = `
       <div class="view-header">
         <div class="view-header__intro">
-          <span class="view-eyebrow">03 · Score</span>
-          <h1>Score an extraction <span class="highlight">vs ground truth</span></h1>
-          <p class="view-lede">Paste raw extraction output, pick which curated manager to compare against, then narrow to the slice that matters (e.g. just Bear rules in the Northeast Region).</p>
+          <span class="view-eyebrow">03 · Validate</span>
+          <h1>Validate <span class="highlight">candidate</span> against reference</h1>
+          <p class="view-lede">Paste a candidate extraction, pick a reference ground truth document, then narrow to the slice that matters. Either side can be promoted to a new ground truth document later.</p>
         </div>
       </div>
 

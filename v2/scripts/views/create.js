@@ -804,32 +804,6 @@ window.Scorer = window.Scorer || {};
       <div class="panel" style="margin-top:var(--space-5);">
         <div class="panel__head">
           <div class="panel__title">
-            <strong>License fees</strong>
-            <span>${totalFees} total · price per license × hunter type for this manager</span>
-          </div>
-          ${state.adding === 'fee'
-            ? `<button class="btn btn--ghost btn--sm" type="button" data-action="cancel-add">Close form</button>`
-            : `<button class="btn btn--primary btn--sm" type="button" data-action="open-add-fee" ${state.adding ? 'disabled' : ''}>+ Add fee</button>`}
-        </div>
-
-        ${state.adding === 'fee' ? renderAddFeeForm() : ''}
-
-        ${totalFees === 0 ? `
-          <div class="empty" style="margin:0;">
-            <div class="empty__title">No license fees yet</div>
-            <div class="empty__body">License fees are stored per <code style="font-family: var(--font-mono); background: var(--bg-inset); padding: 2px 6px; border-radius: 4px;">license × manager × hunter_type</code>. Pick a license, a hunter type (resident, non-resident, youth, senior), and an amount.</div>
-          </div>
-        ` : `
-          <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-            ${state.addedFees.map((f, i) => renderFeeItem(f, 'added', { removable: true, removeKind: 'added-fee', removeKey: i })).join('')}
-            ${sourceFees.map(f => renderFeeItem(f, 'copied', { removable: true, removeKind: 'src-fee', removeKey: f.id })).join('')}
-          </div>
-        `}
-      </div>
-
-      <div class="panel" style="margin-top:var(--space-5);">
-        <div class="panel__head">
-          <div class="panel__title">
             <strong>Hunt rules</strong>
             <span>${totalRules} total · season + species specific</span>
           </div>
@@ -867,8 +841,8 @@ window.Scorer = window.Scorer || {};
       <div class="view-header">
         <div class="view-header__intro">
           <span class="view-eyebrow">02 · Curate</span>
-          <h1>Build a <span class="highlight">ground truth</span> manager</h1>
-          <p class="view-lede">Hand corrected reference manager. Includes general regulations (broad policies) and hunt rules (season + species specific). Forked sources can be trimmed, edited, or extended.</p>
+          <h1>Build a <span class="highlight">ground truth</span> document</h1>
+          <p class="view-lede">Hand corrected reference document. Includes general regulations (broad policies) and hunt rules (season + species specific). Forked sources can be trimmed, edited, or extended.</p>
         </div>
         <div style="display:flex; gap:var(--space-2);">
           <button class="btn btn--ghost" data-action="cancel">Cancel</button>

@@ -51,8 +51,8 @@ window.Scorer = window.Scorer || {};
       <aside class="inspector__pane">
         <div class="inspector__pane-head">
           <div class="inspector__pane-title">
-            <strong>Input</strong>
-            <span>extraction · ${state.inputFormat.toUpperCase()}</span>
+            <strong>Candidate</strong>
+            <span>paste · ${state.inputFormat.toUpperCase()}</span>
           </div>
           <div class="format-toggle">
             ${['text', 'md', 'json'].map(f => `
@@ -87,8 +87,8 @@ window.Scorer = window.Scorer || {};
       <aside class="inspector__pane">
         <div class="inspector__pane-head">
           <div class="inspector__pane-title">
-            <strong>Validation set</strong>
-            <span>${matches.length} ground truth</span>
+            <strong>Reference</strong>
+            <span>${matches.length} ground truth docs</span>
           </div>
         </div>
         <div class="list-filters">
@@ -103,7 +103,7 @@ window.Scorer = window.Scorer || {};
           ${matches.length === 0 ? `
             <div class="detail-empty" style="padding: var(--space-8) var(--space-4);">
               <div class="detail-empty__title">No matches</div>
-              <div class="detail-empty__body">Clear a filter or fork a ground truth from the library.</div>
+              <div class="detail-empty__body">Clear a filter or fork a ground truth document from the library.</div>
             </div>
           ` : matches.map(m => `
             <button class="list-item" type="button" data-manager="${m.id}" aria-current="${state.managerId === m.id}">
@@ -134,7 +134,7 @@ window.Scorer = window.Scorer || {};
             <div class="detail-empty">
               <div class="detail-empty__icon">⌖</div>
               <div class="detail-empty__title">Pick a ground truth manager</div>
-              <div class="detail-empty__body">Once you pick a manager from the middle pane, you can choose which subset of its rules the extraction should be scored against.</div>
+              <div class="detail-empty__body">Once you pick a reference document, choose which subset of its rules the candidate should be validated against.</div>
             </div>
           </div>
         </main>
@@ -230,8 +230,8 @@ window.Scorer = window.Scorer || {};
     root.innerHTML = `
       <div class="view-header">
         <div class="view-header__intro">
-          <span class="view-eyebrow">03 · Score</span>
-          <h1>Score extraction <span class="highlight">vs ground truth</span></h1>
+          <span class="view-eyebrow">03 · Validate</span>
+          <h1>Validate <span class="highlight">candidate</span> against reference</h1>
         </div>
       </div>
       <div class="inspector inspector--triple">

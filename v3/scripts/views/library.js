@@ -69,8 +69,8 @@ window.Scorer = window.Scorer || {};
       return `
         <div class="detail-empty">
           <div class="detail-empty__icon">⌖</div>
-          <div class="detail-empty__title">Pick a ground truth manager</div>
-          <div class="detail-empty__body">Select a manager from the list to inspect its regulations, license fees, and rules. Or click "+ New ground truth" to fork or build one.</div>
+          <div class="detail-empty__title">Pick a ground truth document</div>
+          <div class="detail-empty__body">Select a document from the list to inspect its regulations and rules. Or click "+ New ground truth" to fork or build one.</div>
         </div>
       `;
     }
@@ -124,29 +124,6 @@ window.Scorer = window.Scorer || {};
 
         <div class="detail__section">
           <div class="detail__section-head">
-            <span class="detail__section-title">License fees</span>
-            <span class="detail__section-meta">${fees.length} entries</span>
-          </div>
-          ${fees.length === 0 ? `<div class="detail__field-value detail__field-value--muted">No fees yet.</div>` : `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2);">
-              ${fees.slice(0, 6).map(f => {
-                const lic = data.licenseById(f.licenseId);
-                return `
-                  <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--card-border-strong); border-radius: var(--radius-sm); background: var(--bg-elev-1);">
-                    <div>
-                      <div style="font-size: var(--fs-xs); color: var(--text-primary); font-weight: 600;">${escapeHtml(lic?.name || '?')}</div>
-                      <div style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); text-transform: uppercase;">${escapeHtml(f.hunterType)}</div>
-                    </div>
-                    <div style="font-family: var(--font-mono); font-size: var(--fs-md); color: var(--accent); font-weight: 600;">$${Number(f.fee).toFixed(2)}</div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `}
-        </div>
-
-        <div class="detail__section">
-          <div class="detail__section-head">
             <span class="detail__section-title">Hunt rules</span>
             <span class="detail__section-meta">${rules.length} entries · breakdown by type</span>
           </div>
@@ -189,8 +166,8 @@ window.Scorer = window.Scorer || {};
     root.innerHTML = `
       <div class="view-header">
         <div class="view-header__intro">
-          <span class="view-eyebrow">01 · Truth library</span>
-          <h1>Curated <span class="highlight">source of truth</span></h1>
+          <span class="view-eyebrow">01 · Documents</span>
+          <h1>Ground truth <span class="highlight">documents</span></h1>
         </div>
         <div style="display:flex; gap:var(--space-2);">
           <button class="btn" data-action="fork">Fork existing</button>
@@ -202,7 +179,7 @@ window.Scorer = window.Scorer || {};
         <aside class="inspector__pane">
           <div class="inspector__pane-head">
             <div class="inspector__pane-title">
-              <strong>Managers</strong>
+              <strong>Documents</strong>
               <span>${matches.length} / ${data.MANAGERS.filter(m => m.isGroundTruth).length}</span>
             </div>
           </div>

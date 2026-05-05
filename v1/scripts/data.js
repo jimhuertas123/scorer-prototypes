@@ -270,8 +270,10 @@ window.Scorer.data = (() => {
 }`;
 
   const SAMPLE_REPORT = {
-    id: 'rep-pa-ne-12',
+    id: 'vrun-pa-ne-12',
     managerId: 'pa-ne',
+    referenceLabel: 'PA Northeast Region · ground truth',
+    candidateLabel: 'extraction-2026-05-05.json',
     inputFormat: 'json',
     inputPreview: SAMPLE_INPUT_JSON,
     scope: {
@@ -283,6 +285,32 @@ window.Scorer.data = (() => {
     ranAt: '2026-05-05T14:32:00Z',
     ranBy: 'jim@onx',
     score: 0.55,
+    phases: [
+      {
+        name: 'count_and_match',
+        label: 'Count and match',
+        status: 'completed',
+        durationMs: 84,
+        summary: 'Matched 8 by direct name, 4 leftovers passed to reconciliation',
+        kind: 'deterministic',
+      },
+      {
+        name: 'reconcile_names',
+        label: 'Reconcile names',
+        status: 'completed',
+        durationMs: 3120,
+        summary: 'LLM resolved 2 typos / alt-names; 2 remained unresolved (added to extra)',
+        kind: 'llm',
+      },
+      {
+        name: 'field_and_report',
+        label: 'Field and report',
+        status: 'completed',
+        durationMs: 47,
+        summary: '10 correct, 2 missing, 2 extra; final accuracy 55%',
+        kind: 'deterministic',
+      },
+    ],
     buckets: {
       correct: [
         { id: 'r-0001', species: 'Bear', ruleType: 'Bag Limit', seasonType: 'General', legalLabel: 'One bear per year', huntCode: 'B-GEN-001', summary: 'One bear per license year, statewide' },

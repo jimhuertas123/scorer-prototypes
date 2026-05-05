@@ -20,6 +20,30 @@ window.Scorer = window.Scorer || {};
     return data.SAMPLE_REPORT.buckets[bucket].length;
   }
 
+  function renderPhases() {
+    const r = data.SAMPLE_REPORT;
+    if (!r.phases || r.phases.length === 0) return '';
+    const dot = (kind, status) => {
+      const color = status === 'completed' ? 'var(--status-completed)' : status === 'failed' ? 'var(--status-failed)' : 'var(--status-cancelled)';
+      return `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color}; margin-right:8px;"></span>`;
+    };
+    return `
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-6);">
+        ${r.phases.map((p, i) => `
+          <div style="padding: var(--space-4) var(--space-5); border: 1px solid var(--card-border); border-radius: var(--radius-md); background: var(--card-bg);">
+            <div style="display:flex; align-items:center; gap: var(--space-2); margin-bottom: var(--space-2);">
+              ${dot(p.kind, p.status)}
+              <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-tertiary); font-weight: 600;">Phase ${i + 1}</span>
+              <span style="margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary);">${p.kind === 'llm' ? 'LLM' : 'deterministic'} · ${p.durationMs}ms</span>
+            </div>
+            <div style="font-size: var(--fs-md); font-weight: 700; color: var(--text-primary); letter-spacing: var(--tracking-tight); margin-bottom: 4px;">${escapeHtml(p.label)}</div>
+            <div style="font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5;">${escapeHtml(p.summary)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
   function renderBuckets() {
     const r = data.SAMPLE_REPORT;
     return `
@@ -140,11 +164,11 @@ window.Scorer = window.Scorer || {};
       <div class="view-header">
         <div class="view-header__intro">
           <span class="view-eyebrow">04 · Report</span>
-          <h1>Scoring run <span class="highlight">${r.id}</span></h1>
-          <p class="view-lede">Ingestion vs ground truth rule by rule. Tap a bucket to drill into its rules. Change grouping to spot patterns by species or rule type.</p>
+          <h1>Validation run <span class="highlight">${r.id}</span></h1>
+          <p class="view-lede">Candidate vs reference, rule by rule. Pipeline runs in three phases (count and match, reconcile names, field and report). Tap a bucket to drill into its rules.</p>
         </div>
         <div style="display:flex; gap:var(--space-2);">
-          <button class="btn btn--ghost" type="button" data-action="back">Back to Score</button>
+          <button class="btn btn--ghost" type="button" data-action="back">Back</button>
           <button class="btn" type="button" data-action="export-json">Export JSON</button>
           <button class="btn" type="button" data-action="export-csv">Export CSV</button>
           <button class="btn btn--primary" type="button" data-action="history">View history</button>
@@ -157,14 +181,15 @@ window.Scorer = window.Scorer || {};
           <div class="score-summary__label">Accuracy</div>
         </div>
         <div class="score-summary__meta">
-          <div class="score-summary__title">${escapeHtml(m.name)}, ${escapeHtml(m.state)}</div>
-          <div class="score-summary__sub">${escapeHtml(r.scope.label)} · ${r.inputFormat.toUpperCase()} input · ${ranAtStr} · by ${escapeHtml(r.ranBy)}</div>
+          <div class="score-summary__title">${escapeHtml(r.referenceLabel || (m.name + ', ' + m.state))}</div>
+          <div class="score-summary__sub">vs ${escapeHtml(r.candidateLabel || r.inputFormat.toUpperCase() + ' input')} · ${escapeHtml(r.scope.label)} · ${ranAtStr} · by ${escapeHtml(r.ranBy)}</div>
         </div>
         <div class="score-summary__actions">
-          <span class="manager-card__truth-flag">Ground truth pinned</span>
+          <span class="manager-card__truth-flag">Reference pinned</span>
         </div>
       </div>
 
+      ${renderPhases()}
       ${renderBuckets()}
       ${renderActiveBucket()}
     `;
