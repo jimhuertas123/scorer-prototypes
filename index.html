@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Scorer Prototypes · Ground Truth Evaluation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c0e13;
+      --card: #14171f;
+      --card-2: #1a1e27;
+      --border: rgba(255, 255, 255, 0.13);
+      --text: #ebedf2;
+      --text-2: #a0a7b6;
+      --text-3: #6a7286;
+      --accent: #4f70e8;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100vh; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Outfit", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 32px 64px;
+    }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin: 0 0 16px;
+    }
+    .lede {
+      color: var(--text-2);
+      font-size: 1.1rem;
+      max-width: 64ch;
+      margin: 0 0 56px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 28px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 150ms, background 150ms;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      background: var(--card-2);
+    }
+    .card__tag {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      font-weight: 500;
+    }
+    .card__title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+    .card__sub {
+      color: var(--text-2);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    .card__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .pill {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-2);
+      padding: 3px 9px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .pill--accent { color: var(--accent); border-color: rgba(79, 112, 232, 0.45); }
+    .card__footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+    .card__cta {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .footer {
+      margin-top: 72px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-3);
+      letter-spacing: 0.04em;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">Ground Truth Evaluation</div>
+    <h1>Scorer prototypes</h1>
+    <p class="lede">Three design takes. Same data, same flows.</p>
+
+    <div class="grid">
+      <a class="card" href="v1/index.html">
+        <span class="card__tag">v1 · Luminous</span>
+        <span class="card__title">Indigo glow, soft cards</span>
+        <span class="card__sub">Closest to the existing client.</span>
+        <div class="card__footer">
+          <span>Open</span>
+          <span class="card__cta">v1 →</span>
+        </div>
+      </a>
+
+      <a class="card" href="v2/index.html">
+        <span class="card__tag">v2 · Precision</span>
+        <span class="card__title">Blueprint, sharp edges</span>
+        <span class="card__sub">Hairline borders, no glow.</span>
+        <div class="card__footer">
+          <span>Open</span>
+          <span class="card__cta">v2 →</span>
+        </div>
+      </a>
+
+      <a class="card" href="v3/index.html">
+        <span class="card__tag">v3 · Inspector</span>
+        <span class="card__title">List + detail panes</span>
+        <span class="card__sub">Triple pane on Score.</span>
+        <div class="card__footer">
+          <span>Open</span>
+          <span class="card__cta">v3 →</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="footer">Internal preview · mocked data, no backend.</div>
+  </div>
+</body>
+</html>

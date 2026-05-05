@@ -1,0 +1,94 @@
+:root {
+  color-scheme: dark;
+
+  --bg-dark: #0c0e13;
+  --bg-elev-1: #14171f;
+  --bg-elev-2: #1a1e27;
+  --bg-elev-3: #232834;
+  --bg-inset:  #08090d;
+
+  --card-bg: #14171f;
+  --card-bg-2: #1a1e27;
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-border-strong: rgba(255, 255, 255, 0.13);
+  --card-divider: rgba(255, 255, 255, 0.04);
+
+  --text-primary:   #ebedf2;
+  --text-secondary: #a0a7b6;
+  --text-tertiary:  #6a7286;
+  --text-muted:     #424958;
+
+  --accent: #4f70e8;
+  --accent-hover: #6884ec;
+  --accent-glow: transparent;
+  --accent-soft: rgba(79, 112, 232, 0.13);
+  --accent-softer: rgba(79, 112, 232, 0.06);
+  --accent-line: rgba(79, 112, 232, 0.42);
+
+  --status-pending:   #94a3b8;
+  --status-running:   #4f70e8;
+  --status-completed: #3aa37a;
+  --status-failed:    #d04545;
+  --status-cancelled: #d4a017;
+  --status-paused:    #8b5cf6;
+
+  --status-correct: var(--status-completed);
+  --status-missing: var(--status-cancelled);
+  --status-extra:   var(--status-failed);
+
+  --status-correct-soft: rgba(58, 163, 122, 0.10);
+  --status-missing-soft: rgba(212, 160, 23, 0.10);
+  --status-extra-soft:   rgba(208, 69, 69, 0.10);
+
+  --status-correct-line: rgba(58, 163, 122, 0.40);
+  --status-missing-line: rgba(212, 160, 23, 0.40);
+  --status-extra-line:   rgba(208, 69, 69, 0.40);
+
+  --status-correct-glow: transparent;
+  --status-missing-glow: transparent;
+  --status-extra-glow:   transparent;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 18px;
+  --space-6: 22px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-pill: 2px;
+
+  --font-ui: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", monospace;
+
+  --fs-xxs: 0.7rem;
+  --fs-xs:  0.8rem;
+  --fs-sm:  0.875rem;
+  --fs-base: 0.95rem;
+  --fs-md: 1.05rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 1.95rem;
+  --fs-3xl: 2.5rem;
+
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.12em;
+
+  --duration-fast: 100ms;
+  --duration-base: 150ms;
+  --duration-slow: 220ms;
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emph: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --grid-line: rgba(255, 255, 255, 0.022);
+}

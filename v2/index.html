@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Scorer, Ground Truth Evaluation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+  <div class="app">
+    <header class="stage-rail" role="banner">
+      <div class="stage-rail__brand">
+        <div class="stage-rail__seal" aria-hidden="true">⚖️</div>
+        <div>
+          <div class="stage-rail__title">Scorer</div>
+          <div class="stage-rail__subtitle">Ground Truth Evaluation</div>
+        </div>
+      </div>
+      <nav class="stages" aria-label="Stages">
+        <a class="stages__item" data-route="library" href="#library">
+          <span class="stages__index">01</span><span>Truth Library</span>
+        </a>
+        <span class="stages__sep" aria-hidden="true"></span>
+        <a class="stages__item" data-route="create" href="#create">
+          <span class="stages__index">02</span><span>Curate</span>
+        </a>
+        <span class="stages__sep" aria-hidden="true"></span>
+        <a class="stages__item" data-route="score" href="#score">
+          <span class="stages__index">03</span><span>Score</span>
+        </a>
+        <span class="stages__sep" aria-hidden="true"></span>
+        <a class="stages__item" data-route="report" href="#report">
+          <span class="stages__index">04</span><span>Report</span>
+        </a>
+        <span class="stages__sep" aria-hidden="true"></span>
+        <a class="stages__item" data-route="history" href="#history">
+          <span class="stages__index">05</span><span>History</span>
+        </a>
+      </nav>
+      <div class="stage-rail__user">
+        <span class="stage-rail__user-dot" aria-hidden="true"></span>
+        <span>jim@onx</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="view" data-view="library" id="view-library"></section>
+      <section class="view" data-view="create" id="view-create"></section>
+      <section class="view" data-view="score" id="view-score"></section>
+      <section class="view" data-view="report" id="view-report"></section>
+      <section class="view" data-view="history" id="view-history"></section>
+    </main>
+  </div>
+
+  <script src="scripts/data.js"></script>
+  <script src="scripts/router.js"></script>
+  <script src="scripts/views/library.js"></script>
+  <script src="scripts/views/create.js"></script>
+  <script src="scripts/views/score.js"></script>
+  <script src="scripts/views/report.js"></script>
+  <script src="scripts/views/history.js"></script>
+  <script>
+    window.Scorer.router.init();
+  </script>
+</body>
+</html>
