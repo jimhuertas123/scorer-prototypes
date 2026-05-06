@@ -14,7 +14,7 @@ window.Scorer.data = (() => {
   const MANAGERS = [
     {
       id: 'pa-ne',
-      name: 'Northeast Region',
+      name: 'Pennsylvania Bear & Turkey',
       state: 'PA',
       seasonWindow: 'Fall 2026',
       species: ['Bear', 'Turkey'],
@@ -27,7 +27,7 @@ window.Scorer.data = (() => {
     },
     {
       id: 'mn-z2',
-      name: 'Zone 2 Northwest',
+      name: 'Minnesota Bear & Turkey',
       state: 'MN',
       seasonWindow: 'Fall 2026',
       species: ['Bear', 'Turkey'],
@@ -40,7 +40,7 @@ window.Scorer.data = (() => {
     },
     {
       id: 'tx-south',
-      name: 'South Texas Plains',
+      name: 'Texas Turkey',
       state: 'TX',
       seasonWindow: 'Spring 2026',
       species: ['Turkey'],
@@ -53,7 +53,7 @@ window.Scorer.data = (() => {
     },
     {
       id: 'sd-bh',
-      name: 'Black Hills Forest Unit',
+      name: 'South Dakota Bear & Turkey',
       state: 'SD',
       seasonWindow: 'Fall 2026',
       species: ['Bear', 'Turkey'],
@@ -66,7 +66,7 @@ window.Scorer.data = (() => {
     },
     {
       id: 'mt-d2',
-      name: 'District 2 (Cabinet/Yaak)',
+      name: 'Montana Bear',
       state: 'MT',
       seasonWindow: 'Fall 2026',
       species: ['Bear'],
@@ -272,7 +272,7 @@ window.Scorer.data = (() => {
   const SAMPLE_REPORT = {
     id: 'vrun-pa-ne-12',
     managerId: 'pa-ne',
-    referenceLabel: 'PA Northeast Region · ground truth',
+    referenceLabel: 'PA Bear & Turkey · ground truth',
     candidateLabel: 'extraction-2026-05-05.json',
     inputFormat: 'json',
     inputPreview: SAMPLE_INPUT_JSON,
