@@ -14,6 +14,7 @@ window.Scorer = window.Scorer || {};
     regSelection: {},
     regQuery: '',
     regSpecies: 'all',
+    openGroups: { 'species:Bear': false, 'species:Turkey': false },
   };
 
   function escapeHtml(s) {
@@ -199,19 +200,47 @@ window.Scorer = window.Scorer || {};
           <div>
             <div class="detail__section-head" style="margin-bottom: var(--space-2);">
               <span class="detail__section-title">By species</span>
-              <span class="detail__section-meta">${Object.keys(speciesGroups).length} groups</span>
+              <span class="detail__section-meta">tap to expand · ${Object.keys(speciesGroups).length} groups</span>
             </div>
-            <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+            <div>
               ${Object.keys(speciesGroups).map(sp => {
                 const list = speciesGroups[sp];
                 const on = list.filter(r => sel.has(r.id)).length;
+                const groupKey = 'species:' + sp;
+                const open = state.openGroups[groupKey];
                 return `
-                  <div style="border: 1px solid var(--card-border-strong); border-radius: var(--radius-sm); padding: var(--space-3); display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display:flex; flex-direction:column; gap: 2px;">
-                      <span style="font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary);">${escapeHtml(sp)}</span>
-                      <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); text-transform: uppercase;">${on} of ${list.length} selected</span>
+                  <div class="group ${open ? 'group--open' : ''}">
+                    <button class="group__head" type="button" data-group-toggle="${groupKey}">
+                      <span class="group__caret">▶</span>
+                      <span class="group__name">
+                        <span class="group__name-eyebrow">Species</span>
+                        ${escapeHtml(sp)}
+                      </span>
+                      <span class="group__count"><strong>${on}</strong>/ ${list.length}</span>
+                      <span class="group__toggle" data-group-bulk="${groupKey}">${on === list.length ? 'Deselect' : 'Select all'}</span>
+                    </button>
+                    <div class="group__body">
+                      <div class="tag-stack">
+                        ${list.map(r => `
+                          <button class="tag" type="button" aria-pressed="${sel.has(r.id)}" data-rule-toggle="${r.id}">
+                            <div class="tag__check">${sel.has(r.id) ? '✓' : ''}</div>
+                            <div class="tag__body">
+                              <div class="tag__head">
+                                <span class="tag__id">${r.id}</span>
+                                <span class="tag__sep">·</span>
+                                <span>${escapeHtml(r.ruleType)}</span>
+                                <span class="tag__sep">·</span>
+                                <span>${escapeHtml(r.seasonType)}</span>
+                                ${r.legalLabel ? `<span class="tag__sep">·</span><span style="color: var(--text-secondary);">${escapeHtml(r.legalLabel)}</span>` : ''}
+                                ${r.huntCode ? `<span class="tag__sep">·</span><span style="font-family: var(--font-mono);">${escapeHtml(r.huntCode)}</span>` : ''}
+                              </div>
+                              <div class="tag__summary">${escapeHtml(r.summary)}</div>
+                            </div>
+                            <span></span>
+                          </button>
+                        `).join('')}
+                      </div>
                     </div>
-                    <button class="btn btn--ghost btn--sm" data-group-bulk="species:${sp}">${on === list.length ? 'Deselect' : 'Select all'}</button>
                   </div>
                 `;
               }).join('')}
@@ -221,18 +250,48 @@ window.Scorer = window.Scorer || {};
           <div>
             <div class="detail__section-head" style="margin-bottom: var(--space-2);">
               <span class="detail__section-title">By rule type</span>
-              <span class="detail__section-meta">cross-cut</span>
+              <span class="detail__section-meta">tap to expand · cross-cut</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2);">
+            <div>
               ${Object.keys(ruleTypeGroups).map(t => {
                 const list = ruleTypeGroups[t];
                 const on = list.filter(r => sel.has(r.id)).length;
-                const allOn = on === list.length;
+                const groupKey = 'type:' + t;
+                const open = state.openGroups[groupKey];
                 return `
-                  <button class="chip" style="justify-content: space-between; padding: 0.45rem 0.7rem;" type="button" aria-pressed="${allOn && on > 0}" data-group-bulk="type:${t}">
-                    <span>${escapeHtml(t)}</span>
-                    <span class="chip__count">${on}/${list.length}</span>
-                  </button>
+                  <div class="group ${open ? 'group--open' : ''}">
+                    <button class="group__head" type="button" data-group-toggle="${groupKey}">
+                      <span class="group__caret">▶</span>
+                      <span class="group__name">
+                        <span class="group__name-eyebrow">Type</span>
+                        ${escapeHtml(t)}
+                      </span>
+                      <span class="group__count"><strong>${on}</strong>/ ${list.length}</span>
+                      <span class="group__toggle" data-group-bulk="${groupKey}">${on === list.length ? 'Deselect' : 'Select all'}</span>
+                    </button>
+                    <div class="group__body">
+                      <div class="tag-stack">
+                        ${list.map(r => `
+                          <button class="tag" type="button" aria-pressed="${sel.has(r.id)}" data-rule-toggle="${r.id}">
+                            <div class="tag__check">${sel.has(r.id) ? '✓' : ''}</div>
+                            <div class="tag__body">
+                              <div class="tag__head">
+                                <span class="tag__id">${r.id}</span>
+                                <span class="tag__sep">·</span>
+                                <span>${escapeHtml(r.species)}</span>
+                                <span class="tag__sep">·</span>
+                                <span>${escapeHtml(r.seasonType)}</span>
+                                ${r.legalLabel ? `<span class="tag__sep">·</span><span style="color: var(--text-secondary);">${escapeHtml(r.legalLabel)}</span>` : ''}
+                                ${r.huntCode ? `<span class="tag__sep">·</span><span style="font-family: var(--font-mono);">${escapeHtml(r.huntCode)}</span>` : ''}
+                              </div>
+                              <div class="tag__summary">${escapeHtml(r.summary)}</div>
+                            </div>
+                            <span></span>
+                          </button>
+                        `).join('')}
+                      </div>
+                    </div>
+                  </div>
                 `;
               }).join('')}
             </div>
@@ -370,14 +429,35 @@ window.Scorer = window.Scorer || {};
       });
     });
 
+    root.querySelectorAll('[data-group-toggle]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        if (e.target.closest('[data-group-bulk]')) return;
+        const k = btn.dataset.groupToggle;
+        state.openGroups[k] = !state.openGroups[k];
+        render();
+      });
+    });
+
     root.querySelectorAll('[data-group-bulk]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
         const [kind, val] = btn.dataset.groupBulk.split(':');
         const list = kind === 'species' ? rulesOf().filter(r => r.species === val) : rulesOf().filter(r => r.ruleType === val);
         const sel = selectedSet();
         const allOn = list.every(r => sel.has(r.id));
         list.forEach(r => allOn ? sel.delete(r.id) : sel.add(r.id));
         state.selection[state.managerId] = sel;
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-rule-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.ruleToggle;
+        const set = selectedSet();
+        if (set.has(id)) set.delete(id);
+        else set.add(id);
+        state.selection[state.managerId] = set;
         render();
       });
     });

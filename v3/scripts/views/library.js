@@ -9,6 +9,8 @@ window.Scorer = window.Scorer || {};
     query: '',
     sort: 'recent',
     selectedId: null,
+    expandedRegs: new Set(),
+    expandedTypes: new Set(),
   };
 
   function escapeHtml(s) {
@@ -104,20 +106,23 @@ window.Scorer = window.Scorer || {};
         <div class="detail__section">
           <div class="detail__section-head">
             <span class="detail__section-title">General regulations</span>
-            <span class="detail__section-meta">${regs.length} entries</span>
+            <span class="detail__section-meta">${regs.length} entries · click any title to expand</span>
           </div>
           ${regs.length === 0 ? `<div class="detail__field-value detail__field-value--muted">No regulations yet.</div>` : `
             <div style="display: flex; flex-direction: column; gap: var(--space-2);">
-              ${regs.slice(0, 4).map(g => `
-                <div class="detail__field" style="grid-template-columns: 1fr; gap: 4px; padding: var(--space-2) 0;">
-                  <div style="display: flex; gap: var(--space-2); align-items: center;">
-                    <span class="detail__pill ${g.species.length === 0 ? 'detail__pill--accent' : ''}">${g.species.length === 0 ? 'all species' : g.species.join('/')}</span>
-                    <strong style="font-size: var(--fs-sm); color: var(--text-primary);">${escapeHtml(g.title)}</strong>
+              ${regs.map(g => {
+                const open = state.expandedRegs.has(g.id);
+                return `
+                  <div style="border: 1px solid var(--card-border-strong); border-radius: var(--radius-sm); overflow: hidden;">
+                    <button type="button" data-reg-expand="${g.id}" style="display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: center; width: 100%; text-align: left; padding: var(--space-3); cursor: pointer; background: transparent; font-family: inherit;">
+                      <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); width: 14px; transform: ${open ? 'rotate(90deg)' : 'rotate(0)'}; transition: transform var(--duration-base) var(--ease-out);">▶</span>
+                      <span style="font-size: var(--fs-sm); color: var(--text-primary); font-weight: 600;">${escapeHtml(g.title)}</span>
+                      <span class="detail__pill ${g.species.length === 0 ? 'detail__pill--accent' : ''}">${g.species.length === 0 ? 'all species' : g.species.join('/')}</span>
+                    </button>
+                    ${open ? `<div style="padding: 0 var(--space-3) var(--space-3) calc(14px + var(--space-3) * 2); font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.55; border-top: 1px solid var(--card-divider);">${escapeHtml(g.content)}</div>` : ''}
                   </div>
-                  <div style="font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5;">${escapeHtml(g.content)}</div>
-                </div>
-              `).join('')}
-              ${regs.length > 4 ? `<div style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); padding-top: var(--space-2);">+ ${regs.length - 4} more</div>` : ''}
+                `;
+              }).join('')}
             </div>
           `}
         </div>
@@ -125,16 +130,36 @@ window.Scorer = window.Scorer || {};
         <div class="detail__section">
           <div class="detail__section-head">
             <span class="detail__section-title">Hunt rules</span>
-            <span class="detail__section-meta">${rules.length} entries · breakdown by type</span>
+            <span class="detail__section-meta">${rules.length} entries · click a type to drill in</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2);">
+          <div style="display: flex; flex-direction: column; gap: var(--space-2);">
             ${data.RULE_TYPES.map(t => {
-              const c = rules.filter(r => r.ruleType === t).length;
-              if (c === 0) return '';
-              return `<div style="padding: var(--space-2) var(--space-3); border: 1px solid var(--card-border-strong); border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); text-transform: uppercase; color: var(--text-tertiary); letter-spacing: var(--tracking-wide);">${escapeHtml(t)}</span>
-                <span style="font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-primary); font-weight: 600;">${c}</span>
-              </div>`;
+              const groupRules = rules.filter(r => r.ruleType === t);
+              if (groupRules.length === 0) return '';
+              const open = state.expandedTypes.has(t);
+              return `
+                <div style="border: 1px solid var(--card-border-strong); border-radius: var(--radius-sm); overflow: hidden;">
+                  <button type="button" data-type-expand="${t}" style="display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: center; width: 100%; text-align: left; padding: var(--space-3); cursor: pointer; background: transparent; font-family: inherit;">
+                    <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); width: 14px; transform: ${open ? 'rotate(90deg)' : 'rotate(0)'}; transition: transform var(--duration-base) var(--ease-out);">▶</span>
+                    <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); text-transform: uppercase; color: var(--text-tertiary); letter-spacing: var(--tracking-wide);">${escapeHtml(t)}</span>
+                    <span style="font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--accent); font-weight: 600;">${groupRules.length}</span>
+                  </button>
+                  ${open ? `
+                    <div style="border-top: 1px solid var(--card-divider); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); background: var(--bg-elev-1);">
+                      ${groupRules.map(r => `
+                        <div style="display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: start; padding: var(--space-2) var(--space-3); border: 1px solid var(--card-divider); border-radius: var(--radius-sm); background: var(--card-bg);">
+                          <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary);">${r.id}</span>
+                          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                            <span style="font-size: var(--fs-sm); color: var(--text-primary);">${escapeHtml(r.summary)}</span>
+                            <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: var(--tracking-wide);">${escapeHtml(r.species)} · ${escapeHtml(r.seasonType)}${r.legalLabel ? ' · ' + escapeHtml(r.legalLabel) : ''}${r.huntCode ? ' · ' + escapeHtml(r.huntCode) : ''}</span>
+                          </div>
+                          <span></span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              `;
             }).join('')}
           </div>
         </div>
@@ -163,6 +188,7 @@ window.Scorer = window.Scorer || {};
     ].join('');
 
     root.className = 'view view--inspector';
+    const prevScrolls = Array.from(root.querySelectorAll('.inspector__pane-body')).map(b => b.scrollTop);
     root.innerHTML = `
       <div class="view-header">
         <div class="view-header__intro">
@@ -219,6 +245,9 @@ window.Scorer = window.Scorer || {};
       </div>
     `;
 
+    const newBodies = root.querySelectorAll('.inspector__pane-body');
+    newBodies.forEach((b, i) => { if (prevScrolls[i] != null) b.scrollTop = prevScrolls[i]; });
+
     root.querySelectorAll('.chip[data-filter]').forEach(btn => {
       btn.addEventListener('click', () => {
         state[btn.dataset.filter] = btn.dataset.value;
@@ -240,7 +269,29 @@ window.Scorer = window.Scorer || {};
 
     root.querySelectorAll('[data-manager]').forEach(item => {
       item.addEventListener('click', () => {
+        if (state.selectedId !== item.dataset.manager) {
+          state.expandedRegs = new Set();
+          state.expandedTypes = new Set();
+        }
         state.selectedId = item.dataset.manager;
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-reg-expand]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.regExpand;
+        if (state.expandedRegs.has(id)) state.expandedRegs.delete(id);
+        else state.expandedRegs.add(id);
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-type-expand]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.dataset.typeExpand;
+        if (state.expandedTypes.has(t)) state.expandedTypes.delete(t);
+        else state.expandedTypes.add(t);
         render();
       });
     });
