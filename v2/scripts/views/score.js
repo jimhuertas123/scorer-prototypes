@@ -281,8 +281,8 @@ window.Scorer = window.Scorer || {};
       <div class="panel">
         <div class="panel__head">
           <div class="panel__title">
-            <strong>Sub-selection</strong>
-            <span>pick what to score against</span>
+            <strong>Hunt rules</strong>
+            <span>${selected}/${total} selected · season + species specific</span>
           </div>
           <div style="display:flex; gap:var(--space-2);">
             <button class="btn btn--ghost btn--sm" type="button" data-bulk="all">Select all</button>
