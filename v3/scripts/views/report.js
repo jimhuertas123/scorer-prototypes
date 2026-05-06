@@ -5,8 +5,10 @@ window.Scorer = window.Scorer || {};
 
   const state = {
     bucketFilter: 'all',
-    selectedRuleId: null,
+    entityFilter: 'all',
+    selectedId: null,
     selectedKind: null,
+    selectedEntity: null,
   };
 
   function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
@@ -15,42 +17,79 @@ window.Scorer = window.Scorer || {};
   function flatList() {
     const r = data.SAMPLE_REPORT;
     const items = [];
-    r.buckets.correct.forEach(x => items.push({ kind: 'correct', rule: x }));
-    r.buckets.missing.forEach(x => items.push({ kind: 'missing', rule: x }));
-    r.buckets.extra.forEach(x => items.push({ kind: 'extra', rule: x }));
+    if (state.entityFilter !== 'regulations') {
+      r.buckets.correct.forEach(x => items.push({ entity: 'rule', kind: 'correct', item: x }));
+      r.buckets.missing.forEach(x => items.push({ entity: 'rule', kind: 'missing', item: x }));
+      r.buckets.extra.forEach(x => items.push({ entity: 'rule', kind: 'extra', item: x }));
+    }
+    if (state.entityFilter !== 'rules' && r.regulationsBuckets) {
+      r.regulationsBuckets.correct.forEach(x => items.push({ entity: 'regulation', kind: 'correct', item: x }));
+      r.regulationsBuckets.missing.forEach(x => items.push({ entity: 'regulation', kind: 'missing', item: x }));
+      r.regulationsBuckets.extra.forEach(x => items.push({ entity: 'regulation', kind: 'extra', item: x }));
+    }
     if (state.bucketFilter === 'all') return items;
     return items.filter(x => x.kind === state.bucketFilter);
   }
 
   function findItem() {
-    return flatList().find(x => x.rule.id === state.selectedRuleId && x.kind === state.selectedKind);
+    return flatList().find(x =>
+      x.item.id === state.selectedId &&
+      x.kind === state.selectedKind &&
+      x.entity === state.selectedEntity
+    );
   }
 
-  function chip(label, value) {
+  function bucketChip(label, value) {
     return `<button class="chip" type="button" aria-pressed="${state.bucketFilter === value}" data-bucket="${value}"><span>${escapeHtml(label)}</span></button>`;
   }
 
-  function renderListItem(item) {
-    const r = item.rule;
-    const trailClass = `list-item__trail--${item.kind}`;
-    const dot = { correct: '●', missing: '○', extra: '✕' }[item.kind];
+  function entityChip(label, value, count) {
+    return `<button class="chip" type="button" aria-pressed="${state.entityFilter === value}" data-entity="${value}">
+      <span>${escapeHtml(label)}</span>
+      ${count != null ? `<span class="chip__count">${count}</span>` : ''}
+    </button>`;
+  }
+
+  function renderListItem(entry) {
+    const r = entry.item;
+    const trailClass = `list-item__trail--${entry.kind}`;
+    const dot = { correct: '●', missing: '○', extra: '✕' }[entry.kind];
+    const sealColor = entry.kind === 'correct' ? 'var(--status-correct)' : entry.kind === 'missing' ? 'var(--status-missing)' : 'var(--status-extra)';
+    const isReg = entry.entity === 'regulation';
+    const name = isReg ? r.title : r.summary;
+    const meta = isReg
+      ? `Regulation · ${r.species && r.species.length ? r.species.join('/') : 'all species'}`
+      : `Rule · ${escapeHtml(r.species)} · ${escapeHtml(r.ruleType)}`;
     return `
-      <button class="list-item" type="button" data-rule="${r.id}" data-kind="${item.kind}" aria-current="${state.selectedRuleId === r.id && state.selectedKind === item.kind}">
-        <span class="list-item__seal" style="background: var(--bg-elev-2); color: ${item.kind === 'correct' ? 'var(--status-correct)' : item.kind === 'missing' ? 'var(--status-missing)' : 'var(--status-extra)'};">${dot}</span>
+      <button class="list-item" type="button" data-id="${r.id}" data-kind="${entry.kind}" data-entity="${entry.entity}" aria-current="${state.selectedId === r.id && state.selectedKind === entry.kind && state.selectedEntity === entry.entity}">
+        <span class="list-item__seal" style="background: var(--bg-elev-2); color: ${sealColor};">${dot}</span>
         <span class="list-item__body">
-          <span class="list-item__name">${escapeHtml(r.summary)}</span>
-          <span class="list-item__meta">${escapeHtml(r.species)} · ${escapeHtml(r.ruleType)} · ${escapeHtml(r.seasonType)}</span>
+          <span class="list-item__name">${escapeHtml(name)}</span>
+          <span class="list-item__meta">${meta}</span>
         </span>
-        <span class="list-item__trail ${trailClass}">${item.kind}</span>
+        <span class="list-item__trail ${trailClass}">${entry.kind}</span>
       </button>
     `;
+  }
+
+  function ruleCounts() {
+    const b = data.SAMPLE_REPORT.buckets;
+    return { correct: b.correct.length, missing: b.missing.length, extra: b.extra.length };
+  }
+
+  function regCounts() {
+    const b = data.SAMPLE_REPORT.regulationsBuckets || { correct: [], missing: [], extra: [] };
+    return { correct: b.correct.length, missing: b.missing.length, extra: b.extra.length };
   }
 
   function renderHero() {
     const r = data.SAMPLE_REPORT;
     const m = data.managerById(r.managerId);
-    const total = r.buckets.correct.length + r.buckets.missing.length + r.buckets.extra.length;
-    const accuracy = total > 0 ? r.buckets.correct.length / total : 0;
+    const rc = ruleCounts();
+    const gc = regCounts();
+    const totalCorrect = rc.correct + gc.correct;
+    const totalAll = rc.correct + rc.missing + rc.extra + gc.correct + gc.missing + gc.extra;
+    const accuracy = totalAll > 0 ? totalCorrect / totalAll : 0;
     return `
       <div class="detail__hero">
         <div class="detail__hero-eyebrow">
@@ -60,10 +99,19 @@ window.Scorer = window.Scorer || {};
         </div>
         <div style="display: flex; align-items: baseline; gap: var(--space-4);">
           <div class="detail__hero-title" style="font-family: var(--font-mono); font-size: 3rem; color: var(--accent);">${fmtPct(accuracy)}</div>
-          <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
-            <span class="detail__pill detail__pill--correct">${r.buckets.correct.length} correct</span>
-            <span class="detail__pill detail__pill--missing">${r.buckets.missing.length} missing</span>
-            <span class="detail__pill detail__pill--extra">${r.buckets.extra.length} extra</span>
+          <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+            <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center;">
+              <span class="chip-group__label" style="margin: 0;">Rules</span>
+              <span class="detail__pill detail__pill--correct">${rc.correct} correct</span>
+              <span class="detail__pill detail__pill--missing">${rc.missing} missing</span>
+              <span class="detail__pill detail__pill--extra">${rc.extra} extra</span>
+            </div>
+            <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center;">
+              <span class="chip-group__label" style="margin: 0;">Regulations</span>
+              <span class="detail__pill detail__pill--correct">${gc.correct} correct</span>
+              <span class="detail__pill detail__pill--missing">${gc.missing} missing</span>
+              <span class="detail__pill detail__pill--extra">${gc.extra} extra</span>
+            </div>
           </div>
         </div>
         <div class="detail__hero-sub">vs ${escapeHtml(r.candidateLabel || r.inputFormat.toUpperCase() + ' input')} · ${escapeHtml(r.scope.label)} · by ${escapeHtml(r.ranBy)}</div>
@@ -101,31 +149,23 @@ window.Scorer = window.Scorer || {};
     `;
   }
 
-  function renderRuleDetail(item) {
-    if (!item) {
-      return `
-        <div class="detail-empty">
-          <div class="detail-empty__icon">⌖</div>
-          <div class="detail-empty__title">Pick a rule to inspect</div>
-          <div class="detail-empty__body">Select any rule from the left list to see its full diff entry, including which fields matched and where the gap is.</div>
-        </div>
-      `;
-    }
-    const r = item.rule;
+  function renderRuleDetail(entry) {
+    const r = entry.item;
     const labels = {
       correct: 'Matched ground truth',
-      missing: 'Present in ground truth, absent from extraction',
-      extra: 'Present in extraction, no ground truth counterpart',
+      missing: 'Present in ground truth, absent from candidate',
+      extra: 'Present in candidate, no ground truth counterpart',
     };
     return `
       <div class="detail__section">
         <div class="detail__section-head">
           <span class="detail__section-title">Bucket</span>
-          <span class="detail__section-meta">${item.kind}</span>
+          <span class="detail__section-meta">rule · ${entry.kind}</span>
         </div>
         <div class="detail__pills">
-          <span class="detail__pill detail__pill--${item.kind}">${item.kind}</span>
-          <span style="font-size: var(--fs-xs); color: var(--text-secondary); align-self: center;">${labels[item.kind]}</span>
+          <span class="detail__pill detail__pill--${entry.kind}">${entry.kind}</span>
+          <span class="detail__pill">rule</span>
+          <span style="font-size: var(--fs-xs); color: var(--text-secondary); align-self: center;">${labels[entry.kind]}</span>
         </div>
       </div>
 
@@ -134,36 +174,62 @@ window.Scorer = window.Scorer || {};
           <span class="detail__section-title">Rule</span>
           <span class="detail__section-meta">${escapeHtml(r.id)}</span>
         </div>
-        <div class="detail__field">
-          <span class="detail__field-label">Species</span>
-          <span class="detail__field-value">${escapeHtml(r.species)}</span>
-        </div>
-        <div class="detail__field">
-          <span class="detail__field-label">Rule type</span>
-          <span class="detail__field-value">${escapeHtml(r.ruleType)}</span>
-        </div>
-        <div class="detail__field">
-          <span class="detail__field-label">Season type</span>
-          <span class="detail__field-value">${escapeHtml(r.seasonType)}</span>
-        </div>
-        ${r.legalLabel ? `
-          <div class="detail__field">
-            <span class="detail__field-label">Legal label</span>
-            <span class="detail__field-value">${escapeHtml(r.legalLabel)}</span>
-          </div>
-        ` : ''}
-        ${r.huntCode ? `
-          <div class="detail__field">
-            <span class="detail__field-label">Hunt code</span>
-            <span class="detail__field-value" style="font-family: var(--font-mono);">${escapeHtml(r.huntCode)}</span>
-          </div>
-        ` : ''}
-        <div class="detail__field">
-          <span class="detail__field-label">Summary</span>
-          <span class="detail__field-value">${escapeHtml(r.summary)}</span>
-        </div>
+        <div class="detail__field"><span class="detail__field-label">Species</span><span class="detail__field-value">${escapeHtml(r.species)}</span></div>
+        <div class="detail__field"><span class="detail__field-label">Rule type</span><span class="detail__field-value">${escapeHtml(r.ruleType)}</span></div>
+        <div class="detail__field"><span class="detail__field-label">Season type</span><span class="detail__field-value">${escapeHtml(r.seasonType)}</span></div>
+        ${r.legalLabel ? `<div class="detail__field"><span class="detail__field-label">Legal label</span><span class="detail__field-value">${escapeHtml(r.legalLabel)}</span></div>` : ''}
+        ${r.huntCode ? `<div class="detail__field"><span class="detail__field-label">Hunt code</span><span class="detail__field-value" style="font-family: var(--font-mono);">${escapeHtml(r.huntCode)}</span></div>` : ''}
+        <div class="detail__field"><span class="detail__field-label">Summary</span><span class="detail__field-value">${escapeHtml(r.summary)}</span></div>
       </div>
     `;
+  }
+
+  function renderRegulationDetail(entry) {
+    const g = entry.item;
+    const labels = {
+      correct: 'Matched ground truth regulation',
+      missing: 'Present in ground truth, absent from candidate',
+      extra: 'Present in candidate, no ground truth counterpart',
+    };
+    return `
+      <div class="detail__section">
+        <div class="detail__section-head">
+          <span class="detail__section-title">Bucket</span>
+          <span class="detail__section-meta">regulation · ${entry.kind}</span>
+        </div>
+        <div class="detail__pills">
+          <span class="detail__pill detail__pill--${entry.kind}">${entry.kind}</span>
+          <span class="detail__pill detail__pill--accent">regulation</span>
+          <span style="font-size: var(--fs-xs); color: var(--text-secondary); align-self: center;">${labels[entry.kind]}</span>
+        </div>
+      </div>
+
+      <div class="detail__section">
+        <div class="detail__section-head">
+          <span class="detail__section-title">Regulation</span>
+          <span class="detail__section-meta">${escapeHtml(g.id)}</span>
+        </div>
+        <div class="detail__field"><span class="detail__field-label">Title</span><span class="detail__field-value">${escapeHtml(g.title)}</span></div>
+        <div class="detail__field">
+          <span class="detail__field-label">Applies to</span>
+          <span class="detail__field-value">${g.species && g.species.length > 0 ? g.species.join(', ') : '<em class="detail__field-value--muted">all species</em>'}</span>
+        </div>
+        <div class="detail__field"><span class="detail__field-label">Content</span><span class="detail__field-value">${escapeHtml(g.content)}</span></div>
+      </div>
+    `;
+  }
+
+  function renderDetail(entry) {
+    if (!entry) {
+      return `
+        <div class="detail-empty">
+          <div class="detail-empty__icon">⌖</div>
+          <div class="detail-empty__title">Pick an entry to inspect</div>
+          <div class="detail-empty__body">Select any rule or regulation from the left list to see its full diff entry.</div>
+        </div>
+      `;
+    }
+    return entry.entity === 'regulation' ? renderRegulationDetail(entry) : renderRuleDetail(entry);
   }
 
   function render(params) {
@@ -171,6 +237,8 @@ window.Scorer = window.Scorer || {};
     const root = document.getElementById('view-report');
     const items = flatList();
     const selected = findItem();
+    const rc = ruleCounts();
+    const gc = regCounts();
 
     root.className = 'view view--inspector';
     root.innerHTML = `
@@ -196,17 +264,22 @@ window.Scorer = window.Scorer || {};
           </div>
           <div class="list-filters">
             <div class="chip-row">
-              ${chip('All', 'all')}
-              ${chip('Correct', 'correct')}
-              ${chip('Missing', 'missing')}
-              ${chip('Extra', 'extra')}
+              ${entityChip('All', 'all', (rc.correct + rc.missing + rc.extra + gc.correct + gc.missing + gc.extra))}
+              ${entityChip('Rules', 'rules', rc.correct + rc.missing + rc.extra)}
+              ${entityChip('Regulations', 'regulations', gc.correct + gc.missing + gc.extra)}
+            </div>
+            <div class="chip-row">
+              ${bucketChip('All', 'all')}
+              ${bucketChip('Correct', 'correct')}
+              ${bucketChip('Missing', 'missing')}
+              ${bucketChip('Extra', 'extra')}
             </div>
           </div>
           <div class="inspector__pane-body">
             ${items.length === 0 ? `
               <div class="detail-empty" style="padding: var(--space-8) var(--space-4);">
-                <div class="detail-empty__title">Nothing in this bucket</div>
-                <div class="detail-empty__body">Switch the bucket filter to see other entries.</div>
+                <div class="detail-empty__title">Nothing matches</div>
+                <div class="detail-empty__body">Adjust the entity or bucket filter to see other entries.</div>
               </div>
             ` : items.map(renderListItem).join('')}
           </div>
@@ -215,12 +288,12 @@ window.Scorer = window.Scorer || {};
         <main class="inspector__pane">
           <div class="inspector__pane-head">
             <div class="inspector__pane-title">
-              <strong>${selected ? escapeHtml(selected.rule.summary) : 'Run summary'}</strong>
-              <span>${selected ? selected.rule.id : 'no selection'}</span>
+              <strong>${selected ? escapeHtml(selected.entity === 'regulation' ? selected.item.title : selected.item.summary) : 'Validation summary'}</strong>
+              <span>${selected ? selected.item.id + ' · ' + selected.entity : 'no selection'}</span>
             </div>
           </div>
           <div class="inspector__pane-body inspector__pane-body--padded">
-            ${selected ? renderRuleDetail(selected) : renderHero()}
+            ${selected ? renderDetail(selected) : renderHero()}
           </div>
         </main>
       </div>
@@ -233,10 +306,18 @@ window.Scorer = window.Scorer || {};
       });
     });
 
-    root.querySelectorAll('[data-rule][data-kind]').forEach(item => {
+    root.querySelectorAll('[data-entity]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.entityFilter = btn.dataset.entity;
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-id][data-kind][data-entity]').forEach(item => {
       item.addEventListener('click', () => {
-        state.selectedRuleId = item.dataset.rule;
+        state.selectedId = item.dataset.id;
         state.selectedKind = item.dataset.kind;
+        state.selectedEntity = item.dataset.entity;
         render();
       });
     });

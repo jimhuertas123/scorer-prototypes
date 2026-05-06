@@ -12,7 +12,10 @@ window.Scorer = window.Scorer || {};
     pickerSort: 'recent',
     managerId: null,
     selection: {},
+    regSelection: {},
     openGroups: { 'species:Bear': true, 'species:Turkey': false },
+    regQuery: '',
+    regSpecies: 'all',
   };
 
   function escapeHtml(s) {
@@ -32,10 +35,24 @@ window.Scorer = window.Scorer || {};
 
   function ensureSelection(managerId) {
     if (!managerId) return;
-    if (state.selection[managerId]) return;
-    const rules = data.rulesForManager(managerId);
-    const set = new Set(rules.map(r => r.id));
-    state.selection[managerId] = set;
+    if (!state.selection[managerId]) state.selection[managerId] = new Set(data.rulesForManager(managerId).map(r => r.id));
+    if (!state.regSelection[managerId]) state.regSelection[managerId] = new Set(data.regulationsForManager(managerId).map(g => g.id));
+  }
+
+  function regsAll() { return state.managerId ? data.regulationsForManager(state.managerId) : []; }
+  function regSelectedSet() { return state.regSelection[state.managerId] || new Set(); }
+  function visibleRegs() {
+    return regsAll().filter(g => {
+      if (state.regSpecies !== 'all') {
+        if (g.species && g.species.length > 0 && !g.species.includes(state.regSpecies)) return false;
+      }
+      if (state.regQuery) {
+        const q = state.regQuery.toLowerCase();
+        const hay = ((g.title || '') + ' ' + (g.content || '') + ' ' + g.id).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
   }
 
   function selectedRuleIds() {
@@ -274,19 +291,7 @@ window.Scorer = window.Scorer || {};
         </div>
 
         <div style="display:grid; gap:var(--space-2);">
-          <div class="group ${state.openGroups['__regulations'] ? 'group--open' : ''}">
-            <button class="group__head" type="button" data-group-toggle="__regulations">
-              <span class="group__caret">▶</span>
-              <span class="group__name">
-                <span class="group__name-eyebrow">Group</span>
-                All regulations
-              </span>
-              <span class="group__count">all rules · <strong>${total}</strong></span>
-              <span class="group__toggle" data-bulk="all-rules">Select all</span>
-            </button>
-          </div>
-
-          <div class="panel__title" style="margin-top:var(--space-4); margin-bottom:var(--space-2);">
+          <div class="panel__title" style="margin-bottom:var(--space-2);">
             <strong style="font-size:var(--fs-sm);">By species</strong>
             <span>tap a group to expand</span>
           </div>
@@ -354,10 +359,107 @@ window.Scorer = window.Scorer || {};
                   <span class="group__count"><strong>${groupSel}</strong>/ ${groupRules.length}</span>
                   <span class="group__toggle" data-group-bulk="${groupKey}">${groupSel === groupRules.length ? 'Deselect' : 'Select all'}</span>
                 </button>
+                <div class="group__body">
+                  <div class="tag-stack">
+                    ${groupRules.map(r => `
+                      <button class="tag" type="button" aria-pressed="${sel.has(r.id)}" data-rule="${r.id}">
+                        <div class="tag__check">${sel.has(r.id) ? '✓' : ''}</div>
+                        <div class="tag__body">
+                          <div class="tag__head">
+                            <span class="tag__id">${r.id}</span>
+                            <span class="tag__sep">·</span>
+                            <span>${escapeHtml(r.species)}</span>
+                            <span class="tag__sep">·</span>
+                            <span>${escapeHtml(r.seasonType)}</span>
+                            ${r.legalLabel ? `<span class="tag__sep">·</span><span style="color: var(--text-secondary);">${escapeHtml(r.legalLabel)}</span>` : ''}
+                            ${r.huntCode ? `<span class="tag__sep">·</span><span style="font-family: var(--font-mono);">${escapeHtml(r.huntCode)}</span>` : ''}
+                          </div>
+                          <div class="tag__summary">${escapeHtml(r.summary)}</div>
+                        </div>
+                        <span></span>
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
               </div>
             `;
           }).join('')}
         </div>
+      </div>
+
+      ${renderRegulationsPanel()}
+    `;
+  }
+
+  function renderRegulationsPanel() {
+    const all = regsAll();
+    const sel = regSelectedSet();
+    const visible = visibleRegs();
+    const visibleOn = visible.filter(g => sel.has(g.id)).length;
+    const allVisibleOn = visible.length > 0 && visibleOn === visible.length;
+
+    const speciesChip = (label, value) => `
+      <button class="chip" type="button" aria-pressed="${state.regSpecies === value}" data-reg-filter="${value}">
+        <span>${escapeHtml(label)}</span>
+      </button>
+    `;
+
+    return `
+      <div class="panel" style="margin-top: var(--space-5);">
+        <div class="panel__head">
+          <div class="panel__title">
+            <strong>General regulations</strong>
+            <span>${sel.size}/${all.length} selected · broad policies, not season-specific</span>
+          </div>
+          <div style="display:flex; gap: var(--space-2);">
+            <button class="btn btn--ghost btn--sm" type="button" data-reg-bulk="all">Select all</button>
+            <button class="btn btn--ghost btn--sm" type="button" data-reg-bulk="none">Clear</button>
+          </div>
+        </div>
+
+        ${all.length === 0 ? `
+          <div style="font-size: var(--fs-xs); color: var(--text-tertiary); padding: var(--space-3) 0;">No regulations on this document.</div>
+        ` : `
+          <div style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4);">
+            <div class="search" style="width:100%;">
+              <span class="search__icon">⌕</span>
+              <input class="input" id="reg-search" placeholder="Search regulations by title or content..." value="${escapeHtml(state.regQuery)}" />
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap;">
+              <div class="chip-row">
+                ${speciesChip('Any species', 'all')}
+                ${data.SPECIES.map(sp => speciesChip(sp, sp)).join('')}
+              </div>
+              <button class="btn btn--ghost btn--sm" type="button" data-reg-bulk-visible="${allVisibleOn ? 'none' : 'all'}">${allVisibleOn ? 'Deselect visible' : 'Select all visible'}</button>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); letter-spacing: var(--tracking-wide); text-transform: uppercase;">
+              Showing ${visible.length} of ${all.length} · ${visibleOn} selected
+            </div>
+          </div>
+          ${visible.length === 0 ? `
+            <div style="font-size: var(--fs-xs); color: var(--text-tertiary); padding: var(--space-2) 0;">No regulations match the filter.</div>
+          ` : `
+            <div class="reg-scroll-list" style="display: flex; flex-direction: column; gap: var(--space-2); max-height: 480px; overflow-y: scroll; padding-right: var(--space-2); scrollbar-width: thin;">
+              ${visible.map(g => {
+                const on = sel.has(g.id);
+                return `
+                  <button class="tag" type="button" aria-pressed="${on}" data-reg-toggle="${g.id}" style="grid-template-columns: auto 1fr auto;">
+                    <div class="tag__check">${on ? '✓' : ''}</div>
+                    <div class="tag__body">
+                      <div class="tag__head">
+                        <span class="tag__id">${g.id}</span>
+                        <span class="tag__sep">·</span>
+                        <span>${g.species && g.species.length ? 'Applies to ' + g.species.join('/') : 'Applies to all species'}</span>
+                      </div>
+                      <div class="tag__summary">${escapeHtml(g.title)}</div>
+                    </div>
+                    <span></span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          `}
+        `}
       </div>
     `;
   }
@@ -366,18 +468,21 @@ window.Scorer = window.Scorer || {};
     const total = rules().length;
     const selected = selectedCount();
     const sel = selectedRuleIds();
+    const regSel = regSelectedSet();
+    const regsTotal = regsAll().length;
     const bear = rules().filter(r => r.species === 'Bear' && sel.has(r.id)).length;
     const turkey = rules().filter(r => r.species === 'Turkey' && sel.has(r.id)).length;
+    const totalSelected = selected + regSel.size;
     return `
       <div class="run-bar">
         <div class="run-bar__tally">
-          <span class="run-bar__num">${selected}</span>
-          <span class="run-bar__label">rules selected of ${total}</span>
-          <span class="run-bar__breakdown">${bear} Bear · ${turkey} Turkey</span>
+          <span class="run-bar__num">${totalSelected}</span>
+          <span class="run-bar__label">of ${total + regsTotal} entries</span>
+          <span class="run-bar__breakdown">${selected}r ${regSel.size}g · ${bear}B ${turkey}T</span>
         </div>
         <div style="display:flex; gap:var(--space-3);">
           <button class="btn btn--ghost" type="button" data-action="cancel">Cancel</button>
-          <button class="btn btn--primary" type="button" data-action="run" ${selected === 0 || !state.inputText ? 'disabled' : ''}>
+          <button class="btn btn--primary" type="button" data-action="run" ${totalSelected === 0 || !state.inputText ? 'disabled' : ''}>
             Run scoring
             <span class="btn__kbd">⏎</span>
           </button>
@@ -397,6 +502,7 @@ window.Scorer = window.Scorer || {};
     if (state.managerId) ensureSelection(state.managerId);
 
     const root = document.getElementById('view-score');
+    const prevRegListScroll = root.querySelector('.reg-scroll-list')?.scrollTop || 0;
 
     root.innerHTML = `
       <div class="view-header">
@@ -418,6 +524,9 @@ window.Scorer = window.Scorer || {};
 
       ${state.managerId ? `<div style="height:var(--space-6);"></div>${renderSelectionPanel()}${renderRunBar()}` : ''}
     `;
+
+    const newRegList = root.querySelector('.reg-scroll-list');
+    if (newRegList && prevRegListScroll) newRegList.scrollTop = prevRegListScroll;
 
     // Format toggle
     root.querySelectorAll('.format-toggle__btn').forEach(btn => {
@@ -529,6 +638,62 @@ window.Scorer = window.Scorer || {};
         if (sel.has(id)) sel.delete(id);
         else sel.add(id);
         state.selection[state.managerId] = sel;
+        render();
+      });
+    });
+
+    // Regulations: bulk all/clear (manager-wide)
+    root.querySelectorAll('[data-reg-bulk]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.regBulk;
+        if (action === 'all') state.regSelection[state.managerId] = new Set(regsAll().map(g => g.id));
+        else if (action === 'none') state.regSelection[state.managerId] = new Set();
+        render();
+      });
+    });
+
+    // Regulations: bulk visible (filtered)
+    root.querySelectorAll('[data-reg-bulk-visible]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.regBulkVisible;
+        const visible = visibleRegs();
+        const set = regSelectedSet();
+        if (action === 'all') visible.forEach(g => set.add(g.id));
+        else visible.forEach(g => set.delete(g.id));
+        state.regSelection[state.managerId] = set;
+        render();
+      });
+    });
+
+    // Regulations: species filter chips
+    root.querySelectorAll('[data-reg-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.regSpecies = btn.dataset.regFilter;
+        render();
+      });
+    });
+
+    // Regulations: search
+    const regSearch = root.querySelector('#reg-search');
+    if (regSearch) {
+      regSearch.addEventListener('input', e => {
+        state.regQuery = e.target.value;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#reg-search');
+          if (el) { el.focus(); el.setSelectionRange(state.regQuery.length, state.regQuery.length); }
+        });
+      });
+    }
+
+    // Per-regulation toggle
+    root.querySelectorAll('[data-reg-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.regToggle;
+        const set = regSelectedSet();
+        if (set.has(id)) set.delete(id);
+        else set.add(id);
+        state.regSelection[state.managerId] = set;
         render();
       });
     });

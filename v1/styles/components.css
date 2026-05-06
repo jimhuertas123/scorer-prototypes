@@ -1581,3 +1581,27 @@
   color: var(--accent-hover);
   text-shadow: 0 0 8px var(--accent-glow);
 }
+
+/* Inline X / remove icon button */
+.icon-x {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--card-border-strong);
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  justify-self: end;
+  flex-shrink: 0;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.icon-x:hover {
+  color: var(--status-extra);
+  border-color: var(--status-extra-line);
+  background: var(--status-extra-soft);
+}

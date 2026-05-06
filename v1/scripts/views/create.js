@@ -240,7 +240,7 @@ window.Scorer = window.Scorer || {};
           <div class="list-row">
             <input class="list-row__label" data-list-field="${field}" data-list-index="${i}" data-list-key="${labels.labelKey}" placeholder="${escapeHtml(labels.labelPlaceholder)}" value="${escapeHtml(item[labels.labelKey] || '')}" />
             <textarea class="list-row__content" data-list-field="${field}" data-list-index="${i}" data-list-key="${labels.contentKey}" placeholder="${escapeHtml(labels.contentPlaceholder)}" rows="1">${escapeHtml(item[labels.contentKey] || '')}</textarea>
-            <button class="btn btn--ghost btn--sm" type="button" data-list-remove="${field}" data-list-index="${i}" aria-label="Remove">✕</button>
+            <button class="icon-x" type="button" data-list-remove="${field}" data-list-index="${i}" aria-label="Remove">✕</button>
           </div>
         `).join('')}
         <button class="btn btn--ghost btn--sm" type="button" data-list-add="${field}" style="align-self: flex-start;">+ Add ${labels.itemName}</button>
@@ -540,7 +540,7 @@ window.Scorer = window.Scorer || {};
           ` : ''}
         </div>
         ${opts.removable ? `
-          <button class="btn btn--ghost btn--sm" type="button" data-${opts.removeKind}-remove="${opts.removeKey}" aria-label="Remove" title="Remove">✕</button>
+          <button class="icon-x" type="button" data-${opts.removeKind}-remove="${opts.removeKey}" aria-label="Remove" title="Remove">✕</button>
         ` : `
           <span class="edit-row__source" style="color: ${c.label};">${c.tag}</span>
         `}
@@ -572,7 +572,7 @@ window.Scorer = window.Scorer || {};
         </div>
         <div style="font-size: var(--fs-xl); font-weight: 700; color: var(--accent); font-family: var(--font-mono);">$${Number(f.fee).toFixed(2)}</div>
         ${opts.removable ? `
-          <button class="btn btn--ghost btn--sm" type="button" data-${opts.removeKind}-remove="${opts.removeKey}" aria-label="Remove" title="Remove">✕</button>
+          <button class="icon-x" type="button" data-${opts.removeKind}-remove="${opts.removeKey}" aria-label="Remove" title="Remove">✕</button>
         ` : `
           <span class="edit-row__source" style="color: ${c.label};">${c.tag}</span>
         `}
@@ -704,7 +704,7 @@ window.Scorer = window.Scorer || {};
           <div style="font-size: var(--fs-sm); color: var(--text-secondary); line-height: 1.5;">${escapeHtml(g.content)}</div>
         </div>
         ${opts.removable ? `
-          <button class="btn btn--ghost btn--sm" type="button" data-${opts.removeKind}-remove="${opts.removeKey}" aria-label="Remove" title="Remove">✕</button>
+          <button class="icon-x" type="button" data-${opts.removeKind}-remove="${opts.removeKey}" aria-label="Remove" title="Remove">✕</button>
         ` : `
           <span class="edit-row__source" style="color: ${c.label};">${c.tag}</span>
         `}

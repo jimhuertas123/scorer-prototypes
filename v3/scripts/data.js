@@ -329,6 +329,20 @@ window.Scorer.data = (() => {
         { id: 'x-002', species: 'Bear', ruleType: 'Drone Use', seasonType: 'General', legalLabel: 'Drone scouting', summary: 'Drones permitted for scouting up to 48 hours pre-season' },
       ],
     },
+    regulationsBuckets: {
+      correct: [
+        { id: 'g-0001', title: 'Hunter Education Required', content: 'All first time license buyers must complete a hunter education course before purchasing a hunting license.', species: [] },
+        { id: 'g-0002', title: 'Harvest Reporting', content: 'Successful hunters must report their harvest within 24 hours via the PGC online portal or by phone.', species: ['Bear', 'Turkey'] },
+        { id: 'g-0003', title: 'Tag Carriage', content: 'Hunters must carry their bear or turkey tag with them at all times during the season.', species: ['Bear', 'Turkey'] },
+      ],
+      missing: [
+        { id: 'g-0004', title: 'Sunday Hunting', content: 'Sunday hunting is permitted on three Sundays only: November 16, November 23, and November 30, 2026.', species: [] },
+        { id: 'g-0005', title: 'Fluorescent Orange', content: '250 sq inches of fluorescent orange required during firearm bear and big game seasons.', species: ['Bear'] },
+      ],
+      extra: [
+        { id: 'gx-001', title: 'Mandatory Field Reporting', content: 'All hunters required to report kill site GPS coordinates within 12 hours.', species: ['Bear'] },
+      ],
+    },
   };
 
   const HISTORY = [

@@ -1520,6 +1520,31 @@
 
 .link:hover { color: var(--accent-hover); }
 
+/* Inline X / remove icon button (used on tags and small list items) */
+.icon-x {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--card-border-strong);
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  justify-self: end;
+  flex-shrink: 0;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+
+.icon-x:hover {
+  color: var(--status-extra);
+  border-color: var(--status-extra-line);
+  background: var(--status-extra-soft);
+}
+
 /* ===== Inspector layout (v3) ===== */
 .inspector {
   display: grid;
@@ -1586,7 +1611,29 @@
 .inspector__pane-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: var(--card-border-strong) transparent;
+}
+
+.inspector__pane-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.inspector__pane-body::-webkit-scrollbar-track {
+  background: var(--bg-inset);
+  border-left: 1px solid var(--card-divider);
+}
+
+.inspector__pane-body::-webkit-scrollbar-thumb {
+  background: var(--card-border-strong);
+  border-radius: 6px;
+  border: 2px solid var(--bg-inset);
+}
+
+.inspector__pane-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
 }
 
 .inspector__pane-body--padded { padding: var(--space-4); }

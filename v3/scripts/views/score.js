@@ -11,6 +11,9 @@ window.Scorer = window.Scorer || {};
     pickerSpecies: 'all',
     managerId: null,
     selection: {},
+    regSelection: {},
+    regQuery: '',
+    regSpecies: 'all',
   };
 
   function escapeHtml(s) {
@@ -20,12 +23,29 @@ window.Scorer = window.Scorer || {};
   function tryParseJson(s) { try { JSON.parse(s); return true; } catch { return false; } }
 
   function ensureSelection(managerId) {
-    if (!managerId || state.selection[managerId]) return;
-    state.selection[managerId] = new Set(data.rulesForManager(managerId).map(r => r.id));
+    if (!managerId) return;
+    if (!state.selection[managerId]) state.selection[managerId] = new Set(data.rulesForManager(managerId).map(r => r.id));
+    if (!state.regSelection[managerId]) state.regSelection[managerId] = new Set(data.regulationsForManager(managerId).map(g => g.id));
   }
 
   function rulesOf() { return state.managerId ? data.rulesForManager(state.managerId) : []; }
+  function regsOf() { return state.managerId ? data.regulationsForManager(state.managerId) : []; }
   function selectedSet() { return state.selection[state.managerId] || new Set(); }
+  function regSelectedSet() { return state.regSelection[state.managerId] || new Set(); }
+
+  function visibleRegs() {
+    return regsOf().filter(g => {
+      if (state.regSpecies !== 'all') {
+        if (g.species && g.species.length > 0 && !g.species.includes(state.regSpecies)) return false;
+      }
+      if (state.regQuery) {
+        const q = state.regQuery.toLowerCase();
+        const hay = ((g.title || '') + ' ' + (g.content || '') + ' ' + g.id).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
 
   function pickerMatches() {
     return data.MANAGERS.filter(m => m.isGroundTruth).filter(m => {
@@ -127,14 +147,14 @@ window.Scorer = window.Scorer || {};
           <div class="inspector__pane-head">
             <div class="inspector__pane-title">
               <strong>Scope</strong>
-              <span>no manager picked</span>
+              <span>no document picked</span>
             </div>
           </div>
           <div class="inspector__pane-body">
             <div class="detail-empty">
               <div class="detail-empty__icon">⌖</div>
-              <div class="detail-empty__title">Pick a ground truth manager</div>
-              <div class="detail-empty__body">Once you pick a reference document, choose which subset of its rules the candidate should be validated against.</div>
+              <div class="detail-empty__title">Pick a ground truth document</div>
+              <div class="detail-empty__body">Once you pick a reference document, choose which subset of its rules and regulations the candidate should be validated against.</div>
             </div>
           </div>
         </main>
@@ -144,6 +164,8 @@ window.Scorer = window.Scorer || {};
     const m = data.managerById(state.managerId);
     const all = rulesOf();
     const sel = selectedSet();
+    const regs = regsOf();
+    const regSel = regSelectedSet();
     const speciesGroups = {};
     all.forEach(r => { if (!speciesGroups[r.species]) speciesGroups[r.species] = []; speciesGroups[r.species].push(r); });
     const ruleTypeGroups = {};
@@ -151,6 +173,15 @@ window.Scorer = window.Scorer || {};
 
     const bear = all.filter(r => r.species === 'Bear' && sel.has(r.id)).length;
     const turkey = all.filter(r => r.species === 'Turkey' && sel.has(r.id)).length;
+
+    const visibleRegList = visibleRegs();
+    const visibleRegSelected = visibleRegList.filter(g => regSel.has(g.id)).length;
+    const allVisibleRegOn = visibleRegList.length > 0 && visibleRegSelected === visibleRegList.length;
+    const regSpeciesChip = (label, value) => `
+      <button class="chip" type="button" aria-pressed="${state.regSpecies === value}" data-reg-filter="${value}">
+        <span>${escapeHtml(label)}</span>
+      </button>
+    `;
 
     return `
       <main class="inspector__pane">
@@ -206,13 +237,59 @@ window.Scorer = window.Scorer || {};
               }).join('')}
             </div>
           </div>
+
+          <div>
+            <div class="detail__section-head" style="margin-bottom: var(--space-2);">
+              <span class="detail__section-title">General regulations</span>
+              <span class="detail__section-meta">${regSel.size}/${regs.length} selected</span>
+            </div>
+            ${regs.length === 0 ? `
+              <div style="font-size: var(--fs-xs); color: var(--text-tertiary); padding: var(--space-2) 0;">No regulations on this document.</div>
+            ` : `
+              <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3);">
+                <div class="search">
+                  <span class="search__icon">⌕</span>
+                  <input class="input" id="reg-search" placeholder="Search regulations by title or content..." value="${escapeHtml(state.regQuery)}" />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap;">
+                  <div class="chip-row">
+                    ${regSpeciesChip('Any species', 'all')}
+                    ${data.SPECIES.map(sp => regSpeciesChip(sp, sp)).join('')}
+                  </div>
+                  <button class="btn btn--ghost btn--sm" data-reg-bulk-visible="${allVisibleRegOn ? 'none' : 'all'}">${allVisibleRegOn ? 'Deselect visible' : 'Select all visible'}</button>
+                </div>
+                <div style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); letter-spacing: var(--tracking-wide); text-transform: uppercase;">
+                  Showing ${visibleRegList.length} of ${regs.length} · ${visibleRegSelected} selected
+                </div>
+              </div>
+              ${visibleRegList.length === 0 ? `
+                <div style="font-size: var(--fs-xs); color: var(--text-tertiary); padding: var(--space-2) 0;">No regulations match the filter.</div>
+              ` : `
+                <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+                  ${visibleRegList.map(g => {
+                    const on = regSel.has(g.id);
+                    return `
+                      <button class="list-item" type="button" aria-current="${on}" data-reg-toggle="${g.id}" style="border-radius: var(--radius-sm); border: 1px solid var(--card-border-strong); border-bottom: 1px solid var(--card-border-strong); padding: var(--space-3) var(--space-4);">
+                        <span class="tag__check" style="${on ? 'background: var(--accent); border-color: var(--accent); color: var(--text-primary);' : ''}">${on ? '✓' : ''}</span>
+                        <span class="list-item__body">
+                          <span class="list-item__name">${escapeHtml(g.title)}</span>
+                          <span class="list-item__meta">${g.species && g.species.length ? 'Applies to ' + g.species.join('/') : 'Applies to all species'}</span>
+                        </span>
+                        <span class="list-item__trail" style="color: ${on ? 'var(--accent)' : 'var(--text-muted)'};">${g.id}</span>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              `}
+            `}
+          </div>
         </div>
         <div class="inspector__pane-foot">
           <div style="display: flex; align-items: baseline; gap: var(--space-3);">
-            <span style="font-family: var(--font-mono); font-size: var(--fs-xl); color: var(--accent); font-weight: 700;">${sel.size}</span>
-            <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-tertiary);">/ ${all.length} rules · ${bear}B ${turkey}T</span>
+            <span style="font-family: var(--font-mono); font-size: var(--fs-xl); color: var(--accent); font-weight: 700;">${sel.size + regSel.size}</span>
+            <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-tertiary);">/ ${all.length + regs.length} entries · ${sel.size}r ${regSel.size}g · ${bear}B ${turkey}T</span>
           </div>
-          <button class="btn btn--primary" data-action="run" ${sel.size === 0 || !state.inputText ? 'disabled' : ''}>Run scoring</button>
+          <button class="btn btn--primary" data-action="run" ${(sel.size + regSel.size) === 0 || !state.inputText ? 'disabled' : ''}>Run scoring</button>
         </div>
       </main>
     `;
@@ -226,6 +303,7 @@ window.Scorer = window.Scorer || {};
     if (state.managerId) ensureSelection(state.managerId);
 
     const root = document.getElementById('view-score');
+    const prevScrolls = Array.from(root.querySelectorAll('.inspector__pane-body')).map(b => b.scrollTop);
     root.className = 'view view--inspector';
     root.innerHTML = `
       <div class="view-header">
@@ -240,6 +318,8 @@ window.Scorer = window.Scorer || {};
         ${renderScopePane()}
       </div>
     `;
+    const newBodies = root.querySelectorAll('.inspector__pane-body');
+    newBodies.forEach((b, i) => { if (prevScrolls[i] != null) b.scrollTop = prevScrolls[i]; });
 
     root.querySelectorAll('.format-toggle__btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -278,8 +358,14 @@ window.Scorer = window.Scorer || {};
 
     root.querySelectorAll('[data-bulk]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (btn.dataset.bulk === 'all') state.selection[state.managerId] = new Set(rulesOf().map(r => r.id));
-        if (btn.dataset.bulk === 'none') state.selection[state.managerId] = new Set();
+        if (btn.dataset.bulk === 'all') {
+          state.selection[state.managerId] = new Set(rulesOf().map(r => r.id));
+          state.regSelection[state.managerId] = new Set(regsOf().map(g => g.id));
+        }
+        if (btn.dataset.bulk === 'none') {
+          state.selection[state.managerId] = new Set();
+          state.regSelection[state.managerId] = new Set();
+        }
         render();
       });
     });
@@ -292,6 +378,46 @@ window.Scorer = window.Scorer || {};
         const allOn = list.every(r => sel.has(r.id));
         list.forEach(r => allOn ? sel.delete(r.id) : sel.add(r.id));
         state.selection[state.managerId] = sel;
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-reg-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.regSpecies = btn.dataset.regFilter;
+        render();
+      });
+    });
+
+    const rs = root.querySelector('#reg-search');
+    if (rs) rs.addEventListener('input', e => {
+      state.regQuery = e.target.value;
+      render();
+      requestAnimationFrame(() => {
+        const el = root.querySelector('#reg-search');
+        if (el) { el.focus(); el.setSelectionRange(state.regQuery.length, state.regQuery.length); }
+      });
+    });
+
+    root.querySelectorAll('[data-reg-bulk-visible]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.regBulkVisible;
+        const visible = visibleRegs();
+        const set = regSelectedSet();
+        if (action === 'all') visible.forEach(g => set.add(g.id));
+        else visible.forEach(g => set.delete(g.id));
+        state.regSelection[state.managerId] = set;
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-reg-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.regToggle;
+        const set = regSelectedSet();
+        if (set.has(id)) set.delete(id);
+        else set.add(id);
+        state.regSelection[state.managerId] = set;
         render();
       });
     });
