@@ -4,11 +4,18 @@ window.Scorer = window.Scorer || {};
   const { data, router } = window.Scorer;
 
   const state = {
-    state: 'all',
-    species: 'all',
+    state: new Set(),
+    species: new Set(),
     query: '',
     sort: 'recent',
+    speciesDropdownOpen: false,
+    speciesDropdownQuery: '',
+    stateDropdownOpen: false,
+    stateDropdownQuery: '',
   };
+
+  const FILTER_VISIBLE_CAP = 5;
+  const CARD_SPECIES_CAP = 3;
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -28,8 +35,8 @@ window.Scorer = window.Scorer || {};
   function filtered() {
     const all = data.MANAGERS.filter(m => m.isGroundTruth);
     return all.filter(m => {
-      if (state.state !== 'all' && m.state !== state.state) return false;
-      if (state.species !== 'all' && !m.species.includes(state.species)) return false;
+      if (state.state.size > 0 && !state.state.has(m.state)) return false;
+      if (state.species.size > 0 && !m.species.some(sp => state.species.has(sp))) return false;
       if (state.query) {
         const q = state.query.toLowerCase();
         const hay = (m.name + ' ' + m.state + ' ' + m.species.join(' ')).toLowerCase();
@@ -41,6 +48,15 @@ window.Scorer = window.Scorer || {};
       if (state.sort === 'alpha') return a.name.localeCompare(b.name);
       if (state.sort === 'rules') return b.ruleCount - a.ruleCount;
       return 0;
+    });
+  }
+
+  function renderMultiFilter(kind, items, selectedSet, allLabel) {
+    return window.Scorer.MultiFilter.render({
+      kind, items, selected: selectedSet, allLabel,
+      visibleCap: FILTER_VISIBLE_CAP,
+      state: { open: state[kind + 'DropdownOpen'], query: state[kind + 'DropdownQuery'] },
+      escapeHtml,
     });
   }
 
@@ -76,7 +92,8 @@ window.Scorer = window.Scorer || {};
         </div>
         <div class="manager-card__foot">
           <div class="manager-card__species">
-            ${m.species.map(s => `<span class="manager-card__species-tag">${escapeHtml(s)}</span>`).join('')}
+            ${m.species.slice(0, CARD_SPECIES_CAP).map(s => `<span class="manager-card__species-tag">${escapeHtml(s)}</span>`).join('')}
+            ${m.species.length > CARD_SPECIES_CAP ? `<span class="manager-card__species-tag" title="${escapeHtml(m.species.slice(CARD_SPECIES_CAP).join(', '))}">+${m.species.length - CARD_SPECIES_CAP}</span>` : ''}
           </div>
           <div>Curated <strong>${relativeDate(m.lastCuratedAt)}</strong></div>
         </div>
@@ -98,22 +115,19 @@ window.Scorer = window.Scorer || {};
     const root = document.getElementById('view-library');
     const matches = filtered();
 
-    const stateChips = [
-      chip('All states', 'all', state.state, 'state'),
-      ...Object.values(data.STATES).map(s => {
-        const count = data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length;
-        if (count === 0) return '';
-        return chip(s.code, s.code, state.state, 'state', count);
-      }),
-    ].join('');
+    const stateItems = Object.values(data.STATES).map(s => ({
+      key: s.code,
+      label: s.code,
+      count: data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length,
+    }));
+    const stateChips = renderMultiFilter('state', stateItems, state.state, 'All states');
 
-    const speciesChips = [
-      chip('All species', 'all', state.species, 'species'),
-      ...data.SPECIES.map(sp => {
-        const count = data.MANAGERS.filter(m => m.isGroundTruth && m.species.includes(sp)).length;
-        return chip(sp, sp, state.species, 'species', count);
-      }),
-    ].join('');
+    const speciesItems = data.allSpecies().map(sp => ({
+      key: sp,
+      label: sp,
+      count: data.MANAGERS.filter(m => m.isGroundTruth && m.species.includes(sp)).length,
+    })).filter(it => it.count > 0);
+    const speciesChips = renderMultiFilter('species', speciesItems, state.species, 'All species');
 
     root.innerHTML = `
       <div class="view-header">
@@ -137,13 +151,6 @@ window.Scorer = window.Scorer || {};
           <div class="toolbar__row">
             <span class="chip-group__label">Species</span>
             <div class="chip-row">${speciesChips}</div>
-            <span class="toolbar__divider"></span>
-            <span class="chip-group__label">Sort</span>
-            <div class="chip-row">
-              ${chip('Recently curated', 'recent', state.sort, 'sort')}
-              ${chip('A to Z', 'alpha', state.sort, 'sort')}
-              ${chip('Most rules', 'rules', state.sort, 'sort')}
-            </div>
           </div>
         </div>
         <div class="search">
@@ -161,13 +168,75 @@ window.Scorer = window.Scorer || {};
       `}
     `;
 
-    root.querySelectorAll('.chip[data-filter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.filter;
-        state[key] = btn.dataset.value;
-        render();
+    // Generic toggles for state and species
+    ['state', 'species'].forEach(kind => {
+      root.querySelectorAll(`[data-toggle-${kind}]`).forEach(btn => {
+        btn.addEventListener('click', e => {
+          // If the toggle is inside a dropdown panel, prevent the outside-close from firing
+          if (btn.closest('[data-' + kind + '-other] .species-other__panel')) e.stopPropagation();
+          const v = btn.dataset[`toggle${kind[0].toUpperCase() + kind.slice(1)}`];
+          if (state[kind].has(v)) state[kind].delete(v);
+          else state[kind].add(v);
+          render();
+        });
       });
+      root.querySelectorAll(`[data-clear-${kind}]`).forEach(btn => {
+        btn.addEventListener('click', () => { state[kind] = new Set(); render(); });
+      });
+      root.querySelectorAll(`[data-clear-other-${kind}]`).forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const items = kind === 'state'
+            ? Object.values(data.STATES).map(s => ({ key: s.code, count: data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length }))
+            : data.allSpecies().map(sp => ({ key: sp, count: data.MANAGERS.filter(m => m.isGroundTruth && m.species.includes(sp)).length })).filter(it => it.count > 0);
+          const sorted = [...items].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+          const otherKeys = new Set(sorted.slice(FILTER_VISIBLE_CAP).map(it => it.key));
+          state[kind] = new Set([...state[kind]].filter(v => !otherKeys.has(v)));
+          render();
+        });
+      });
+      root.querySelectorAll(`[data-toggle-${kind}-dropdown]`).forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          state[kind + 'DropdownOpen'] = !state[kind + 'DropdownOpen'];
+          state[kind + 'DropdownQuery'] = '';
+          const otherKind = kind === 'state' ? 'species' : 'state';
+          state[otherKind + 'DropdownOpen'] = false;
+          render();
+        });
+      });
+      const ddSearch = root.querySelector(`#${kind}-other-search`);
+      if (ddSearch) {
+        ddSearch.addEventListener('click', e => e.stopPropagation());
+        ddSearch.addEventListener('input', e => {
+          e.stopPropagation();
+          state[kind + 'DropdownQuery'] = e.target.value;
+          render();
+          requestAnimationFrame(() => {
+            const el = root.querySelector(`#${kind}-other-search`);
+            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+          });
+        });
+      }
     });
+
+    // Outside-click handler (single, idempotent) closes any open dropdowns
+    if (!window.__libraryOutside) {
+      window.__libraryOutside = ev => {
+        const stOpen = state.stateDropdownOpen;
+        const spOpen = state.speciesDropdownOpen;
+        if (!stOpen && !spOpen) return;
+        const stPanel = document.querySelector('[data-state-other]');
+        const spPanel = document.querySelector('[data-species-other]');
+        const insideSt = stPanel && stPanel.contains(ev.target);
+        const insideSp = spPanel && spPanel.contains(ev.target);
+        let changed = false;
+        if (stOpen && !insideSt) { state.stateDropdownOpen = false; state.stateDropdownQuery = ''; changed = true; }
+        if (spOpen && !insideSp) { state.speciesDropdownOpen = false; state.speciesDropdownQuery = ''; changed = true; }
+        if (changed) render();
+      };
+      document.addEventListener('click', window.__libraryOutside);
+    }
 
     const search = root.querySelector('#library-search');
     if (search) {
@@ -189,7 +258,7 @@ window.Scorer = window.Scorer || {};
         if (action === 'fork') router.navigate('create', { mode: 'fork' });
         if (action === 'new') router.navigate('create', { mode: 'blank' });
         if (action === 'reset') {
-          state.state = 'all'; state.species = 'all'; state.query = '';
+          state.state = new Set(); state.species = new Set(); state.query = '';
           render();
         }
       });

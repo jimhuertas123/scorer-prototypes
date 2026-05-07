@@ -4,14 +4,20 @@ window.Scorer = window.Scorer || {};
   const { data, router } = window.Scorer;
 
   const state = {
-    state: 'all',
-    species: 'all',
+    state: new Set(),
+    species: new Set(),
     query: '',
     sort: 'recent',
     selectedId: null,
     expandedRegs: new Set(),
     expandedTypes: new Set(),
+    stateDropdownOpen: false,
+    stateDropdownQuery: '',
+    speciesDropdownOpen: false,
+    speciesDropdownQuery: '',
   };
+
+  const FILTER_VISIBLE_CAP = 5;
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -30,8 +36,8 @@ window.Scorer = window.Scorer || {};
 
   function filtered() {
     return data.MANAGERS.filter(m => m.isGroundTruth).filter(m => {
-      if (state.state !== 'all' && m.state !== state.state) return false;
-      if (state.species !== 'all' && !m.species.includes(state.species)) return false;
+      if (state.state.size > 0 && !state.state.has(m.state)) return false;
+      if (state.species.size > 0 && !m.species.some(sp => state.species.has(sp))) return false;
       if (state.query) {
         const q = state.query.toLowerCase();
         if (!(m.name + ' ' + m.state + ' ' + m.species.join(' ')).toLowerCase().includes(q)) return false;
@@ -42,6 +48,15 @@ window.Scorer = window.Scorer || {};
       if (state.sort === 'alpha') return a.name.localeCompare(b.name);
       if (state.sort === 'rules') return b.ruleCount - a.ruleCount;
       return 0;
+    });
+  }
+
+  function renderMultiFilter(kind, items, selectedSet, allLabel) {
+    return window.Scorer.MultiFilter.render({
+      kind, items, selected: selectedSet, allLabel,
+      visibleCap: FILTER_VISIBLE_CAP,
+      state: { open: state[kind + 'DropdownOpen'], query: state[kind + 'DropdownQuery'] },
+      escapeHtml,
     });
   }
 
@@ -59,7 +74,7 @@ window.Scorer = window.Scorer || {};
         <span class="list-item__seal">${m.state}</span>
         <span class="list-item__body">
           <span class="list-item__name">${escapeHtml(m.name)}</span>
-          <span class="list-item__meta">${m.species.join(' · ')} · ${m.regulationCount}r ${m.ruleCount} rules</span>
+          <span class="list-item__meta">${m.species.slice(0, 3).join(' · ')}${m.species.length > 3 ? ' · +' + (m.species.length - 3) : ''} · ${m.regulationCount}r ${m.ruleCount} rules</span>
         </span>
         <span class="list-item__trail">${relativeDate(m.lastCuratedAt)}</span>
       </button>
@@ -173,19 +188,17 @@ window.Scorer = window.Scorer || {};
     if (state.selectedId && !matches.find(m => m.id === state.selectedId)) state.selectedId = null;
     const selected = state.selectedId ? data.managerById(state.selectedId) : null;
 
-    const stateChipList = [
-      chip('All', 'all', state.state, 'state'),
-      ...Object.values(data.STATES).map(s => {
-        const count = data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length;
-        if (count === 0) return '';
-        return chip(s.code, s.code, state.state, 'state', count);
-      }),
-    ].join('');
+    const stateItems = Object.values(data.STATES).map(s => ({
+      key: s.code, label: s.code,
+      count: data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length,
+    }));
+    const stateChipList = renderMultiFilter('state', stateItems, state.state, 'All');
 
-    const speciesChipList = [
-      chip('Any species', 'all', state.species, 'species'),
-      ...data.SPECIES.map(sp => chip(sp, sp, state.species, 'species')),
-    ].join('');
+    const speciesItems = data.allSpecies().map(sp => ({
+      key: sp, label: sp,
+      count: data.MANAGERS.filter(m => m.isGroundTruth && (m.species || []).includes(sp)).length,
+    })).filter(it => it.count > 0);
+    const speciesChipList = renderMultiFilter('species', speciesItems, state.species, 'Any species');
 
     root.className = 'view view--inspector';
     const prevScrolls = Array.from(root.querySelectorAll('.inspector__pane-body')).map(b => b.scrollTop);
@@ -248,12 +261,57 @@ window.Scorer = window.Scorer || {};
     const newBodies = root.querySelectorAll('.inspector__pane-body');
     newBodies.forEach((b, i) => { if (prevScrolls[i] != null) b.scrollTop = prevScrolls[i]; });
 
-    root.querySelectorAll('.chip[data-filter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state[btn.dataset.filter] = btn.dataset.value;
-        render();
+    ['state', 'species'].forEach(kind => {
+      window.Scorer.MultiFilter.wire({
+        root, kind,
+        onToggle: v => {
+          if (state[kind].has(v)) state[kind].delete(v); else state[kind].add(v);
+          render();
+        },
+        onClear: () => { state[kind] = new Set(); render(); },
+        onClearOther: () => {
+          const items = kind === 'state'
+            ? Object.values(data.STATES).map(s => ({ key: s.code, count: data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length }))
+            : data.allSpecies().map(sp => ({ key: sp, count: data.MANAGERS.filter(m => m.isGroundTruth && (m.species || []).includes(sp)).length })).filter(it => it.count > 0);
+          const sorted = [...items].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+          const otherKeys = new Set(sorted.slice(FILTER_VISIBLE_CAP).map(it => it.key));
+          state[kind] = new Set([...state[kind]].filter(v => !otherKeys.has(v)));
+          render();
+        },
+        onToggleDropdown: () => {
+          state[kind + 'DropdownOpen'] = !state[kind + 'DropdownOpen'];
+          state[kind + 'DropdownQuery'] = '';
+          const other = kind === 'state' ? 'species' : 'state';
+          state[other + 'DropdownOpen'] = false;
+          render();
+        },
+        onSearch: q => {
+          state[kind + 'DropdownQuery'] = q;
+          render();
+          requestAnimationFrame(() => {
+            const el = root.querySelector(`#${kind}-other-search`);
+            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+          });
+        },
       });
     });
+
+    if (!window.__libraryV3Outside) {
+      window.__libraryV3Outside = ev => {
+        const stOpen = state.stateDropdownOpen;
+        const spOpen = state.speciesDropdownOpen;
+        if (!stOpen && !spOpen) return;
+        const view = document.getElementById('view-library');
+        if (!view) return;
+        const stP = view.querySelector('[data-state-other]');
+        const spP = view.querySelector('[data-species-other]');
+        let changed = false;
+        if (stOpen && stP && !stP.contains(ev.target)) { state.stateDropdownOpen = false; state.stateDropdownQuery = ''; changed = true; }
+        if (spOpen && spP && !spP.contains(ev.target)) { state.speciesDropdownOpen = false; state.speciesDropdownQuery = ''; changed = true; }
+        if (changed) render();
+      };
+      document.addEventListener('click', window.__libraryV3Outside);
+    }
 
     const search = root.querySelector('#library-search');
     if (search) {

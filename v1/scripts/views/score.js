@@ -7,15 +7,21 @@ window.Scorer = window.Scorer || {};
     inputText: data.SAMPLE_INPUT_JSON,
     inputFormat: 'json',
     pickerQuery: '',
-    pickerState: 'all',
-    pickerSpecies: 'all',
+    pickerState: new Set(),
+    pickerSpecies: new Set(),
     pickerSort: 'recent',
+    pickerStateDropdownOpen: false,
+    pickerStateDropdownQuery: '',
+    pickerSpeciesDropdownOpen: false,
+    pickerSpeciesDropdownQuery: '',
     managerId: null,
     selection: {},
     regSelection: {},
-    openGroups: { 'species:Bear': true, 'species:Turkey': false },
+    openGroups: {},
     regQuery: '',
-    regSpecies: 'all',
+    regSpecies: new Set(),
+    regSpeciesDropdownOpen: false,
+    regSpeciesDropdownQuery: '',
   };
 
   function escapeHtml(s) {
@@ -43,8 +49,9 @@ window.Scorer = window.Scorer || {};
   function regSelectedSet() { return state.regSelection[state.managerId] || new Set(); }
   function visibleRegs() {
     return regsAll().filter(g => {
-      if (state.regSpecies !== 'all') {
-        if (g.species && g.species.length > 0 && !g.species.includes(state.regSpecies)) return false;
+      if (state.regSpecies.size > 0) {
+        // OR-match: keep regs that target none of the picked species, OR target at least one of them
+        if (g.species && g.species.length > 0 && !g.species.some(sp => state.regSpecies.has(sp))) return false;
       }
       if (state.regQuery) {
         const q = state.regQuery.toLowerCase();
@@ -90,8 +97,8 @@ window.Scorer = window.Scorer || {};
 
   function pickerMatches() {
     return data.MANAGERS.filter(m => m.isGroundTruth).filter(m => {
-      if (state.pickerState !== 'all' && m.state !== state.pickerState) return false;
-      if (state.pickerSpecies !== 'all' && !m.species.includes(state.pickerSpecies)) return false;
+      if (state.pickerState.size > 0 && !state.pickerState.has(m.state)) return false;
+      if (state.pickerSpecies.size > 0 && !m.species.some(sp => state.pickerSpecies.has(sp))) return false;
       if (state.pickerQuery) {
         const q = state.pickerQuery.toLowerCase();
         const hay = (m.name + ' ' + m.state + ' ' + m.species.join(' ')).toLowerCase();
@@ -145,21 +152,32 @@ window.Scorer = window.Scorer || {};
 
   function renderPicker() {
     const matches = pickerMatches();
-    const stateChips = [
-      chip('All states', 'all', state.pickerState, 'pickerState'),
-      ...Object.values(data.STATES).map(s => {
-        const count = data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length;
-        if (count === 0) return '';
-        return chip(s.code, s.code, state.pickerState, 'pickerState', count);
-      }),
-    ].join('');
-    const speciesChips = [
-      chip('Any', 'all', state.pickerSpecies, 'pickerSpecies'),
-      ...data.SPECIES.map(sp => {
-        const count = data.MANAGERS.filter(m => m.isGroundTruth && m.species.includes(sp)).length;
-        return chip(sp, sp, state.pickerSpecies, 'pickerSpecies', count);
-      }),
-    ].join('');
+    const stateItems = Object.values(data.STATES).map(s => ({
+      key: s.code, label: s.code,
+      count: data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length,
+    }));
+    const stateChips = window.Scorer.MultiFilter.render({
+      kind: 'pickerstate',
+      items: stateItems,
+      selected: state.pickerState,
+      allLabel: 'All states',
+      visibleCap: 5,
+      state: { open: state.pickerStateDropdownOpen, query: state.pickerStateDropdownQuery },
+      escapeHtml,
+    });
+    const speciesItems = data.allSpecies().map(sp => ({
+      key: sp, label: sp,
+      count: data.MANAGERS.filter(m => m.isGroundTruth && (m.species || []).includes(sp)).length,
+    })).filter(it => it.count > 0);
+    const speciesChips = window.Scorer.MultiFilter.render({
+      kind: 'pickersp',
+      items: speciesItems,
+      selected: state.pickerSpecies,
+      allLabel: 'Any species',
+      visibleCap: 5,
+      state: { open: state.pickerSpeciesDropdownOpen, query: state.pickerSpeciesDropdownQuery },
+      escapeHtml,
+    });
 
     const recent = data.MANAGERS
       .filter(m => m.isGroundTruth && m.lastUsedAt)
@@ -238,7 +256,8 @@ window.Scorer = window.Scorer || {};
                 </div>
                 <div class="manager-card__foot">
                   <div class="manager-card__species">
-                    ${m.species.map(s => `<span class="manager-card__species-tag">${escapeHtml(s)}</span>`).join('')}
+                    ${m.species.slice(0, 3).map(s => `<span class="manager-card__species-tag">${escapeHtml(s)}</span>`).join('')}
+                    ${m.species.length > 3 ? `<span class="manager-card__species-tag" title="${escapeHtml(m.species.slice(3).join(', '))}">+${m.species.length - 3}</span>` : ''}
                   </div>
                 </div>
               </button>
@@ -398,11 +417,10 @@ window.Scorer = window.Scorer || {};
     const visibleOn = visible.filter(g => sel.has(g.id)).length;
     const allVisibleOn = visible.length > 0 && visibleOn === visible.length;
 
-    const speciesChip = (label, value) => `
-      <button class="chip" type="button" aria-pressed="${state.regSpecies === value}" data-reg-filter="${value}">
-        <span>${escapeHtml(label)}</span>
-      </button>
-    `;
+    const speciesItems = data.speciesForManager(state.managerId).map(sp => ({
+      key: sp, label: sp,
+      count: data.regulationsForManager(state.managerId).filter(g => (g.species || []).includes(sp)).length,
+    }));
 
     return `
       <div class="panel" style="margin-top: var(--space-5);">
@@ -427,8 +445,15 @@ window.Scorer = window.Scorer || {};
             </div>
             <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap;">
               <div class="chip-row">
-                ${speciesChip('Any species', 'all')}
-                ${data.SPECIES.map(sp => speciesChip(sp, sp)).join('')}
+                ${window.Scorer.MultiFilter.render({
+                  kind: 'regsp',
+                  items: speciesItems,
+                  selected: state.regSpecies,
+                  allLabel: 'Any species',
+                  visibleCap: 5,
+                  state: { open: state.regSpeciesDropdownOpen, query: state.regSpeciesDropdownQuery },
+                  escapeHtml,
+                })}
               </div>
               <button class="btn btn--ghost btn--sm" type="button" data-reg-bulk-visible="${allVisibleOn ? 'none' : 'all'}">${allVisibleOn ? 'Deselect visible' : 'Select all visible'}</button>
             </div>
@@ -470,15 +495,19 @@ window.Scorer = window.Scorer || {};
     const sel = selectedRuleIds();
     const regSel = regSelectedSet();
     const regsTotal = regsAll().length;
-    const bear = rules().filter(r => r.species === 'Bear' && sel.has(r.id)).length;
-    const turkey = rules().filter(r => r.species === 'Turkey' && sel.has(r.id)).length;
+    const speciesCounts = {};
+    rules().forEach(r => {
+      if (sel.has(r.id)) speciesCounts[r.species] = (speciesCounts[r.species] || 0) + 1;
+    });
+    const topSpecies = Object.entries(speciesCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const breakdown = topSpecies.map(([sp, n]) => `${n} ${sp}`).join(' · ');
     const totalSelected = selected + regSel.size;
     return `
       <div class="run-bar">
         <div class="run-bar__tally">
           <span class="run-bar__num">${totalSelected}</span>
           <span class="run-bar__label">of ${total + regsTotal} entries</span>
-          <span class="run-bar__breakdown">${selected}r ${regSel.size}g · ${bear}B ${turkey}T</span>
+          <span class="run-bar__breakdown">${selected}r ${regSel.size}g${breakdown ? ' · ' + breakdown : ''}</span>
         </div>
         <div style="display:flex; gap:var(--space-3);">
           <button class="btn btn--ghost" type="button" data-action="cancel">Cancel</button>
@@ -545,13 +574,61 @@ window.Scorer = window.Scorer || {};
       inputEl.addEventListener('input', e => { state.inputText = e.target.value; });
     }
 
-    // Picker filters
-    root.querySelectorAll('.chip[data-filter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state[btn.dataset.filter] = btn.dataset.value;
-        render();
+    // Picker filters (multi-select with Other dropdown)
+    [['pickerstate', 'pickerState'], ['pickersp', 'pickerSpecies']].forEach(([kind, stateKey]) => {
+      const ddOpenKey = stateKey + 'DropdownOpen';
+      const ddQueryKey = stateKey + 'DropdownQuery';
+      window.Scorer.MultiFilter.wire({
+        root, kind,
+        onToggle: v => {
+          if (state[stateKey].has(v)) state[stateKey].delete(v); else state[stateKey].add(v);
+          render();
+        },
+        onClear: () => { state[stateKey] = new Set(); render(); },
+        onClearOther: () => {
+          const items = stateKey === 'pickerState'
+            ? Object.values(data.STATES).map(s => ({ key: s.code, count: data.MANAGERS.filter(m => m.isGroundTruth && m.state === s.code).length }))
+            : data.allSpecies().map(sp => ({ key: sp, count: data.MANAGERS.filter(m => m.isGroundTruth && (m.species || []).includes(sp)).length })).filter(it => it.count > 0);
+          const sorted = [...items].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+          const otherKeys = new Set(sorted.slice(5).map(it => it.key));
+          state[stateKey] = new Set([...state[stateKey]].filter(v => !otherKeys.has(v)));
+          render();
+        },
+        onToggleDropdown: () => {
+          state[ddOpenKey] = !state[ddOpenKey];
+          state[ddQueryKey] = '';
+          // Close the other picker dropdown
+          const otherStateKey = stateKey === 'pickerState' ? 'pickerSpecies' : 'pickerState';
+          state[otherStateKey + 'DropdownOpen'] = false;
+          render();
+        },
+        onSearch: q => {
+          state[ddQueryKey] = q;
+          render();
+          requestAnimationFrame(() => {
+            const el = root.querySelector(`#${kind}-other-search`);
+            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+          });
+        },
       });
     });
+
+    if (!window.__scorePickerOutside) {
+      window.__scorePickerOutside = ev => {
+        const stOpen = state.pickerStateDropdownOpen;
+        const spOpen = state.pickerSpeciesDropdownOpen;
+        if (!stOpen && !spOpen) return;
+        const view = document.getElementById('view-score');
+        if (!view) return;
+        const stP = view.querySelector('[data-pickerstate-other]');
+        const spP = view.querySelector('[data-pickersp-other]');
+        let changed = false;
+        if (stOpen && stP && !stP.contains(ev.target)) { state.pickerStateDropdownOpen = false; state.pickerStateDropdownQuery = ''; changed = true; }
+        if (spOpen && spP && !spP.contains(ev.target)) { state.pickerSpeciesDropdownOpen = false; state.pickerSpeciesDropdownQuery = ''; changed = true; }
+        if (changed) render();
+      };
+      document.addEventListener('click', window.__scorePickerOutside);
+    }
 
     const pickerSearch = root.querySelector('#picker-search');
     if (pickerSearch) {
@@ -665,13 +742,48 @@ window.Scorer = window.Scorer || {};
       });
     });
 
-    // Regulations: species filter chips
-    root.querySelectorAll('[data-reg-filter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.regSpecies = btn.dataset.regFilter;
+    // Regulations: species filter (multi-select with Other dropdown)
+    window.Scorer.MultiFilter.wire({
+      root, kind: 'regsp',
+      onToggle: v => {
+        if (state.regSpecies.has(v)) state.regSpecies.delete(v); else state.regSpecies.add(v);
         render();
-      });
+      },
+      onClear: () => { state.regSpecies = new Set(); render(); },
+      onClearOther: () => {
+        const items = data.speciesForManager(state.managerId);
+        const other = new Set(items.slice(5));
+        state.regSpecies = new Set([...state.regSpecies].filter(v => !other.has(v)));
+        render();
+      },
+      onToggleDropdown: () => {
+        state.regSpeciesDropdownOpen = !state.regSpeciesDropdownOpen;
+        state.regSpeciesDropdownQuery = '';
+        render();
+      },
+      onSearch: q => {
+        state.regSpeciesDropdownQuery = q;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#regsp-other-search');
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      },
     });
+
+    if (!window.__scoreRegspOutside) {
+      window.__scoreRegspOutside = ev => {
+        if (!state.regSpeciesDropdownOpen) return;
+        const view = document.getElementById('view-score');
+        const el = view && view.querySelector('[data-regsp-other]');
+        if (el && !el.contains(ev.target)) {
+          state.regSpeciesDropdownOpen = false;
+          state.regSpeciesDropdownQuery = '';
+          render();
+        }
+      };
+      document.addEventListener('click', window.__scoreRegspOutside);
+    }
 
     // Regulations: search
     const regSearch = root.querySelector('#reg-search');

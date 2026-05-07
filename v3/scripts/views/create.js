@@ -19,7 +19,32 @@ window.Scorer = window.Scorer || {};
     removedRegIds: new Set(),
     removedFeeIds: new Set(),
     expandedSections: new Set(),
+    curate: {
+      regsExpanded: null,
+      rulesExpanded: null,
+      regsSearch: '',
+      rulesSearch: '',
+    },
   };
+
+  function curateRegsExpanded() {
+    if (state.curate.regsExpanded !== null) return state.curate.regsExpanded;
+    return !state.sourceId || activeSourceRegs().length <= 10;
+  }
+  function curateRulesExpanded() {
+    if (state.curate.rulesExpanded !== null) return state.curate.rulesExpanded;
+    return !state.sourceId || activeSourceRules().length <= 10;
+  }
+  function filteredSourceRegs() {
+    const q = state.curate.regsSearch.toLowerCase();
+    if (!q) return activeSourceRegs();
+    return activeSourceRegs().filter(g => ((g.title || '') + ' ' + (g.content || '') + ' ' + g.id).toLowerCase().includes(q));
+  }
+  function filteredSourceRules() {
+    const q = state.curate.rulesSearch.toLowerCase();
+    if (!q) return activeSourceRules();
+    return activeSourceRules().filter(r => ((r.summary || '') + ' ' + (r.legalLabel || '') + ' ' + (r.huntCode || '') + ' ' + r.id).toLowerCase().includes(q));
+  }
 
   function emptyRule() {
     return {
@@ -39,6 +64,18 @@ window.Scorer = window.Scorer || {};
   function emptyReg() {
     return { title: '', content: '', species: [], speciesScope: 'all', iconSource: '' };
   }
+
+  // Dropdown UI state for new-reg species multi-select
+  if (!window.__createNewRegSp) {
+    window.__createNewRegSp = { open: false, query: '' };
+  }
+  function newRegSpDropdown() { return window.__createNewRegSp; }
+
+  // Dropdown UI state for new-rule species single-select
+  if (!window.__createNewRuleSp) {
+    window.__createNewRuleSp = { open: false, query: '' };
+  }
+  function newRuleSpDropdown() { return window.__createNewRuleSp; }
 
   function emptyFee() {
     return { licenseId: '', baseLicenseId: '', hunterType: '', fee: '', currency: 'USD' };
@@ -194,7 +231,7 @@ window.Scorer = window.Scorer || {};
                 <span class="combobox__item-seal">${m.state}</span>
                 <span>
                   <span class="combobox__item-name">${escapeHtml(m.name)}</span>
-                  <div class="combobox__item-meta">${m.regulationCount} regulations · ${m.ruleCount} rules · ${m.species.join(', ')}</div>
+                  <div class="combobox__item-meta">${m.regulationCount} regulations · ${m.ruleCount} rules · ${m.species.slice(0, 3).join(', ')}${m.species.length > 3 ? ', +' + (m.species.length - 3) : ''}</div>
                 </span>
                 ${m.isGroundTruth ? `<span class="manager-card__truth-flag">Ground truth</span>` : ''}
               </button>
@@ -408,7 +445,17 @@ window.Scorer = window.Scorer || {};
         <div style="display: grid; gap: var(--space-5);">
           <div style="display: flex; flex-direction: column; gap: var(--space-2);">
             <span class="chip-group__label">Species *</span>
-            <div class="chip-row">${chipsRow('species', data.SPECIES, r.species, 'newrule')}</div>
+            <div class="chip-row">
+              ${window.Scorer.MultiFilter.render({
+                kind: 'newrulesp',
+                items: (state.sourceId ? data.speciesForManager(state.sourceId) : data.allSpecies()).map(sp => ({ key: sp, label: sp })),
+                selected: r.species || null,
+                allLabel: 'Clear',
+                visibleCap: 5,
+                state: newRuleSpDropdown(),
+                escapeHtml,
+              })}
+            </div>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: var(--space-2);">
@@ -475,8 +522,18 @@ window.Scorer = window.Scorer || {};
               <button class="chip" type="button" aria-pressed="${g.speciesScope === 'specific'}" data-newreg-scope="specific">Specific species</button>
             </div>
             ${g.speciesScope === 'specific' ? `
-              <div class="chip-row" style="margin-top: var(--space-2);">${multiChipsRow('species', data.SPECIES, g.species, 'newreg')}</div>
-              ${g.species.length === 0 ? `<div style="font-size: var(--fs-xs); color: var(--status-cancelled);">Pick at least one species, or switch back to "All species".</div>` : ''}
+              <div class="chip-row" style="margin-top: var(--space-2);">
+                ${window.Scorer.MultiFilter.render({
+                  kind: 'newregsp',
+                  items: (state.sourceId ? data.speciesForManager(state.sourceId) : data.allSpecies()).map(sp => ({ key: sp, label: sp })),
+                  selected: new Set(g.species),
+                  allLabel: 'Clear all',
+                  visibleCap: 5,
+                  state: newRegSpDropdown(),
+                  escapeHtml,
+                })}
+              </div>
+              ${g.species.length === 0 ? `<div style="font-size: var(--fs-xs); color: var(--status-cancelled); margin-top: var(--space-2);">Pick at least one species, or switch back to "All species".</div>` : ''}
             ` : ''}
           </div>
 
@@ -712,6 +769,156 @@ window.Scorer = window.Scorer || {};
     `;
   }
 
+  function renderRegsPanel(sourceRegs, totalRegs) {
+    const expanded = curateRegsExpanded();
+    const filtered = filteredSourceRegs();
+    const q = state.curate.regsSearch;
+    const showingCount = filtered.length;
+    return `
+      <div class="panel" style="margin-top:var(--space-5);">
+        <div class="panel__head">
+          <div class="panel__title">
+            <strong>General regulations</strong>
+            <span>${totalRegs} total · ${state.addedRegs.length} added · ${sourceRegs.length} forked</span>
+          </div>
+          <div style="display:flex; gap:var(--space-2);">
+            ${sourceRegs.length > 0 ? `<button class="btn btn--ghost btn--sm" type="button" data-action="toggle-regs-expanded">${expanded ? 'Collapse' : 'Manage forked'}</button>` : ''}
+            ${state.adding === 'reg'
+              ? `<button class="btn btn--ghost btn--sm" type="button" data-action="cancel-add">Close form</button>`
+              : `<button class="btn btn--primary btn--sm" type="button" data-action="open-add-reg" ${state.adding ? 'disabled' : ''}>+ Add regulation</button>`}
+          </div>
+        </div>
+
+        ${state.adding === 'reg' ? renderAddRegForm() : ''}
+
+        ${totalRegs === 0 ? `
+          <div class="empty" style="margin:0;">
+            <div class="empty__title">No regulations yet</div>
+            <div class="empty__body">Regulations are broad policies (e.g. "Hunter education required") that apply across the manager, independent of season.</div>
+          </div>
+        ` : `
+          <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+            ${state.addedRegs.map((g, i) => renderRegItem(g, 'added', { removable: true, removeKind: 'added-reg', removeKey: i })).join('')}
+
+            ${sourceRegs.length > 0 && !expanded ? `
+              <button type="button" data-action="toggle-regs-expanded" style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); padding:var(--space-3) var(--space-4); border:1px dashed var(--card-border); border-radius:var(--radius-md); background: var(--accent-softer); color:var(--text-secondary); font-family: inherit; cursor:pointer;">
+                <span style="font-size:var(--fs-sm); color:var(--text-primary);"><strong style="color:var(--accent);">${sourceRegs.length}</strong> regulations forked from source</span>
+                <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--accent);">click to manage ▾</span>
+              </button>
+            ` : ''}
+
+            ${sourceRegs.length > 0 && expanded ? `
+              <div style="display:flex; flex-direction:column; gap:var(--space-3); padding: var(--space-3); background: var(--bg-inset); border-radius: var(--radius-md);">
+                <div style="display:flex; gap:var(--space-3); align-items:center;">
+                  <div class="search" style="flex:1;">
+                    <span class="search__icon">⌕</span>
+                    <input class="input" id="curate-regs-search" placeholder="Search forked regulations..." value="${escapeHtml(q)}" />
+                  </div>
+                  ${showingCount > 0 ? `<button class="btn btn--ghost btn--sm btn--danger" type="button" data-action="remove-visible-regs" title="Remove all ${showingCount} matching regs">Remove ${showingCount} visible</button>` : ''}
+                </div>
+                <div style="font-family:var(--font-mono); font-size:var(--fs-xxs); letter-spacing: var(--tracking-wide); text-transform:uppercase; color:var(--text-tertiary);">
+                  Showing ${showingCount} of ${sourceRegs.length}
+                </div>
+                <div class="reg-scroll-list" style="display:flex; flex-direction:column; gap:var(--space-2); max-height:480px; overflow-y:scroll; scrollbar-width: thin; padding-right: var(--space-2);">
+                  ${showingCount === 0
+                    ? `<div style="font-size:var(--fs-xs); color:var(--text-tertiary); padding: var(--space-2);">No matches.</div>`
+                    : filtered.map(g => renderRegItem(g, 'copied', { removable: true, removeKind: 'src-reg', removeKey: g.id })).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  function renderRulesPanel(sourceRules, totalRules) {
+    const expanded = curateRulesExpanded();
+    const filtered = filteredSourceRules();
+    const q = state.curate.rulesSearch;
+
+    // Group filtered rules by ruleType for bulk actions
+    const groupsByType = {};
+    filtered.forEach(r => {
+      if (!groupsByType[r.ruleType]) groupsByType[r.ruleType] = [];
+      groupsByType[r.ruleType].push(r);
+    });
+    const typeOrder = data.RULE_TYPES.filter(t => groupsByType[t]).concat(
+      Object.keys(groupsByType).filter(t => !data.RULE_TYPES.includes(t))
+    );
+
+    return `
+      <div class="panel" style="margin-top:var(--space-5);">
+        <div class="panel__head">
+          <div class="panel__title">
+            <strong>Hunt rules</strong>
+            <span>${totalRules} total · ${state.addedRules.length} added · ${sourceRules.length} forked</span>
+          </div>
+          <div style="display:flex; gap:var(--space-2);">
+            ${sourceRules.length > 0 ? `<button class="btn btn--ghost btn--sm" type="button" data-action="toggle-rules-expanded">${expanded ? 'Collapse' : 'Manage forked'}</button>` : ''}
+            ${state.adding === 'rule'
+              ? `<button class="btn btn--ghost btn--sm" type="button" data-action="cancel-add">Close form</button>`
+              : `<button class="btn btn--primary btn--sm" type="button" data-action="open-add-rule" ${state.adding ? 'disabled' : ''}>+ Add rule</button>`}
+          </div>
+        </div>
+
+        ${state.adding === 'rule' ? renderAddRuleForm() : ''}
+
+        ${totalRules === 0 ? `
+          <div class="empty" style="margin:0;">
+            <div class="empty__title">No rules yet</div>
+            <div class="empty__body">Hunt rules are specific to a season and species.</div>
+          </div>
+        ` : `
+          <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+            ${state.addedRules.length > 0 ? `
+              <div class="tag-stack">
+                ${state.addedRules.map((r, i) => renderRuleTag(r, 'added', { removable: true, removeKind: 'added-rule', removeKey: i })).join('')}
+              </div>
+            ` : ''}
+
+            ${sourceRules.length > 0 && !expanded ? `
+              <button type="button" data-action="toggle-rules-expanded" style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); padding:var(--space-3) var(--space-4); border:1px dashed var(--card-border); border-radius:var(--radius-md); background: var(--accent-softer); color:var(--text-secondary); font-family: inherit; cursor:pointer;">
+                <span style="font-size:var(--fs-sm); color:var(--text-primary);"><strong style="color:var(--accent);">${sourceRules.length}</strong> rules forked from source</span>
+                <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--accent);">click to manage ▾</span>
+              </button>
+            ` : ''}
+
+            ${sourceRules.length > 0 && expanded ? `
+              <div style="display:flex; flex-direction:column; gap:var(--space-3); padding: var(--space-3); background: var(--bg-inset); border-radius: var(--radius-md);">
+                <div style="display:flex; gap:var(--space-3); align-items:center;">
+                  <div class="search" style="flex:1;">
+                    <span class="search__icon">⌕</span>
+                    <input class="input" id="curate-rules-search" placeholder="Search forked rules by summary, legal label, hunt code..." value="${escapeHtml(q)}" />
+                  </div>
+                  ${filtered.length > 0 ? `<button class="btn btn--ghost btn--sm btn--danger" type="button" data-action="remove-visible-rules" title="Remove all ${filtered.length} matching rules">Remove ${filtered.length} visible</button>` : ''}
+                </div>
+                <div style="font-family:var(--font-mono); font-size:var(--fs-xxs); letter-spacing: var(--tracking-wide); text-transform:uppercase; color:var(--text-tertiary);">
+                  Showing ${filtered.length} of ${sourceRules.length} · grouped by rule type
+                </div>
+                <div style="display:flex; flex-direction:column; gap: var(--space-3); max-height:520px; overflow-y:scroll; scrollbar-width: thin; padding-right: var(--space-2);">
+                  ${typeOrder.length === 0
+                    ? `<div style="font-size:var(--fs-xs); color:var(--text-tertiary); padding: var(--space-2);">No matches.</div>`
+                    : typeOrder.map(t => `
+                        <div style="display:flex; flex-direction:column; gap: var(--space-2);">
+                          <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); padding: var(--space-2) var(--space-3); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm);">
+                            <span style="font-family: var(--font-mono); font-size: var(--fs-xxs); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-tertiary);">${escapeHtml(t)} <strong style="color: var(--accent); margin-left: 6px;">${groupsByType[t].length}</strong></span>
+                            <button class="btn btn--ghost btn--sm btn--danger" type="button" data-remove-type-rules="${escapeHtml(t)}" title="Remove all ${groupsByType[t].length} rules in ${escapeHtml(t)}">Remove all in type</button>
+                          </div>
+                          <div class="tag-stack">
+                            ${groupsByType[t].map(r => renderRuleTag(r, 'copied', { removable: true, removeKind: 'src-rule', removeKey: r.id })).join('')}
+                          </div>
+                        </div>
+                      `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
   function renderEditor() {
     const src = source();
     const isFork = state.mode === 'fork' && src;
@@ -775,58 +982,8 @@ window.Scorer = window.Scorer || {};
         </div>
       </div>
 
-      <div class="panel" style="margin-top:var(--space-5);">
-        <div class="panel__head">
-          <div class="panel__title">
-            <strong>General regulations</strong>
-            <span>${totalRegs} total · broad policies, not season-specific</span>
-          </div>
-          ${state.adding === 'reg'
-            ? `<button class="btn btn--ghost btn--sm" type="button" data-action="cancel-add">Close form</button>`
-            : `<button class="btn btn--primary btn--sm" type="button" data-action="open-add-reg" ${state.adding ? 'disabled' : ''}>+ Add regulation</button>`}
-        </div>
-
-        ${state.adding === 'reg' ? renderAddRegForm() : ''}
-
-        ${totalRegs === 0 ? `
-          <div class="empty" style="margin:0;">
-            <div class="empty__title">No regulations yet</div>
-            <div class="empty__body">Regulations are broad policies (e.g. "Hunter education required") that apply across the manager, independent of season. Add them with the button above.</div>
-          </div>
-        ` : `
-          <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-            ${state.addedRegs.map((g, i) => renderRegItem(g, 'added', { removable: true, removeKind: 'added-reg', removeKey: i })).join('')}
-            ${sourceRegs.map(g => renderRegItem(g, 'copied', { removable: true, removeKind: 'src-reg', removeKey: g.id })).join('')}
-          </div>
-        `}
-      </div>
-
-      <div class="panel" style="margin-top:var(--space-5);">
-        <div class="panel__head">
-          <div class="panel__title">
-            <strong>Hunt rules</strong>
-            <span>${totalRules} total · season + species specific</span>
-          </div>
-          ${state.adding === 'rule'
-            ? `<button class="btn btn--ghost btn--sm" type="button" data-action="cancel-add">Close form</button>`
-            : `<button class="btn btn--primary btn--sm" type="button" data-action="open-add-rule" ${state.adding ? 'disabled' : ''}>+ Add rule</button>`}
-        </div>
-
-        ${state.adding === 'rule' ? renderAddRuleForm() : ''}
-
-        ${totalRules === 0 ? `
-          <div class="empty" style="margin:0;">
-            <div class="empty__title">No rules yet</div>
-            <div class="empty__body">Hunt rules are specific to a season and species. Each carries species, season type, optional dates, optional bag limit, sex, weapon categories, and a summary.</div>
-          </div>
-        ` : `
-          <div class="tag-stack">
-            ${state.addedRules.map((r, i) => renderRuleTag(r, 'added', { removable: true, removeKind: 'added-rule', removeKey: i })).join('')}
-            ${sourceRules.slice(0, 12).map(r => renderRuleTag(r, 'copied', { removable: true, removeKind: 'src-rule', removeKey: r.id })).join('')}
-            ${sourceRules.length > 12 ? `<div style="text-align:center; color:var(--text-tertiary); font-size:var(--fs-xs); padding:var(--space-3);">${sourceRules.length - 12} more rules below · prototype shows first 12</div>` : ''}
-          </div>
-        `}
-      </div>
+      ${renderRegsPanel(sourceRegs, totalRegs)}
+      ${renderRulesPanel(sourceRules, totalRules)}
     `;
   }
 
@@ -891,7 +1048,7 @@ window.Scorer = window.Scorer || {};
                   <span class="combobox__item-seal">${m.state}</span>
                   <span>
                     <span class="combobox__item-name">${escapeHtml(m.name)}</span>
-                    <div class="combobox__item-meta">${m.regulationCount} regulations · ${m.ruleCount} rules · ${m.species.join(', ')}</div>
+                    <div class="combobox__item-meta">${m.regulationCount} regulations · ${m.ruleCount} rules · ${m.species.slice(0, 3).join(', ')}${m.species.length > 3 ? ', +' + (m.species.length - 3) : ''}</div>
                   </span>
                   ${m.isGroundTruth ? `<span class="manager-card__truth-flag">Ground truth</span>` : ''}
                 </button>
@@ -1060,6 +1217,68 @@ window.Scorer = window.Scorer || {};
       });
     });
 
+    // New-rule species single-select dropdown (using MultiFilter)
+    window.Scorer.MultiFilter.wire({
+      root, kind: 'newrulesp',
+      onToggle: v => {
+        // Single-select: tapping the same value clears it; new value replaces
+        state.newRule.species = state.newRule.species === v ? '' : v;
+        render();
+      },
+      onClear: () => { state.newRule.species = ''; render(); },
+      onClearOther: () => {
+        const items = state.sourceId ? data.speciesForManager(state.sourceId) : data.allSpecies();
+        const otherKeys = new Set(items.slice(5));
+        if (otherKeys.has(state.newRule.species)) state.newRule.species = '';
+        render();
+      },
+      onToggleDropdown: () => {
+        const dd = newRuleSpDropdown();
+        dd.open = !dd.open; dd.query = '';
+        render();
+      },
+      onSearch: q => {
+        const dd = newRuleSpDropdown();
+        dd.query = q;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#newrulesp-other-search');
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      },
+    });
+
+    // New-reg species multi-select dropdown (using MultiFilter)
+    window.Scorer.MultiFilter.wire({
+      root, kind: 'newregsp',
+      onToggle: v => {
+        const list = state.newReg.species || [];
+        state.newReg.species = list.includes(v) ? list.filter(x => x !== v) : [...list, v];
+        render();
+      },
+      onClear: () => { state.newReg.species = []; render(); },
+      onClearOther: () => {
+        const items = state.sourceId ? data.speciesForManager(state.sourceId) : data.allSpecies();
+        const otherKeys = new Set(items.slice(5));
+        state.newReg.species = (state.newReg.species || []).filter(v => !otherKeys.has(v));
+        render();
+      },
+      onToggleDropdown: () => {
+        const dd = newRegSpDropdown();
+        dd.open = !dd.open; dd.query = '';
+        render();
+      },
+      onSearch: q => {
+        const dd = newRegSpDropdown();
+        dd.query = q;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#newregsp-other-search');
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      },
+    });
+
     // New-reg chip toggles (multi)
     root.querySelectorAll('[data-newreg-multi-field]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1152,6 +1371,37 @@ window.Scorer = window.Scorer || {};
     });
 
     // Top-level actions
+    root.querySelectorAll('[data-remove-type-rules]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.dataset.removeTypeRules;
+        activeSourceRules().filter(r => r.ruleType === t).forEach(r => state.removedRuleIds.add(r.id));
+        render();
+      });
+    });
+
+    const regsSearch = root.querySelector('#curate-regs-search');
+    if (regsSearch) {
+      regsSearch.addEventListener('input', e => {
+        state.curate.regsSearch = e.target.value;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#curate-regs-search');
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      });
+    }
+    const rulesSearch = root.querySelector('#curate-rules-search');
+    if (rulesSearch) {
+      rulesSearch.addEventListener('input', e => {
+        state.curate.rulesSearch = e.target.value;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#curate-rules-search');
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      });
+    }
+
     root.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action;
@@ -1193,6 +1443,22 @@ window.Scorer = window.Scorer || {};
           state.newRule = emptyRule();
           state.newReg = emptyReg();
           state.newFee = emptyFee();
+          render();
+        }
+        if (action === 'toggle-regs-expanded') {
+          state.curate.regsExpanded = !curateRegsExpanded();
+          render();
+        }
+        if (action === 'toggle-rules-expanded') {
+          state.curate.rulesExpanded = !curateRulesExpanded();
+          render();
+        }
+        if (action === 'remove-visible-regs') {
+          filteredSourceRegs().forEach(g => state.removedRegIds.add(g.id));
+          render();
+        }
+        if (action === 'remove-visible-rules') {
+          filteredSourceRules().forEach(r => state.removedRuleIds.add(r.id));
           render();
         }
         if (action === 'save-rule') {
