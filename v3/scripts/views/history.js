@@ -109,12 +109,58 @@ window.Scorer = window.Scorer || {};
           </div>
         </div>
       </div>
+      ${renderRunDiff(row)}
+    `;
+  }
+
+  function renderRunDiff(row) {
+    const r = data.SAMPLE_REPORT;
+    const hasFull = r && r.id === row.id;
+    if (!hasFull) {
+      return `
+        <div class="detail__section">
+          <div class="detail__section-head">
+            <span class="detail__section-title">Diff entries</span>
+            <span class="detail__section-meta">archived · summary only</span>
+          </div>
+          <div style="font-size: var(--fs-xs); color: var(--text-tertiary); padding: var(--space-3); border: 1px dashed var(--card-border-strong); border-radius: var(--radius-sm);">
+            This run is archived. Per-rule diff is not retained, only the summary counts above. The full diff is kept for the most recent run only.
+          </div>
+        </div>
+      `;
+    }
+    const renderTagBlock = (kind, list) => `
       <div class="detail__section">
         <div class="detail__section-head">
-          <span class="detail__section-title">Open</span>
+          <span class="detail__section-title">${kind[0].toUpperCase() + kind.slice(1)}</span>
+          <span class="detail__section-meta">${list.length} ${list.length === 1 ? 'entry' : 'entries'}</span>
         </div>
-        <button class="btn btn--primary" data-action="open-report">View full report</button>
+        <div class="tag-stack">
+          ${list.map(rl => `
+            <div class="tag tag--${kind}">
+              <div class="tag__body">
+                <div class="tag__head">
+                  <span class="tag__id">${escapeHtml(rl.id)}</span>
+                  <span class="tag__sep">·</span>
+                  <span>${escapeHtml(rl.species)}</span>
+                  <span class="tag__sep">·</span>
+                  <span>${escapeHtml(rl.ruleType)}</span>
+                  <span class="tag__sep">·</span>
+                  <span>${escapeHtml(rl.seasonType)}</span>
+                  ${rl.legalLabel ? `<span class="tag__sep">·</span><span style="color: var(--text-secondary);">${escapeHtml(rl.legalLabel)}</span>` : ''}
+                  ${rl.huntCode ? `<span class="tag__sep">·</span><span style="font-family: var(--font-mono);">${escapeHtml(rl.huntCode)}</span>` : ''}
+                </div>
+                <div class="tag__summary">${escapeHtml(rl.summary)}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
+    `;
+    return `
+      ${renderTagBlock('correct', r.buckets.correct)}
+      ${renderTagBlock('missing', r.buckets.missing)}
+      ${renderTagBlock('extra', r.buckets.extra)}
     `;
   }
 
@@ -254,14 +300,6 @@ window.Scorer = window.Scorer || {};
       });
     });
 
-    root.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.action === 'open-report') {
-          if (state.selectedRunId === data.SAMPLE_REPORT.id) router.navigate('report', { id: state.selectedRunId });
-          else alert('Mock prototype: would open archived report ' + state.selectedRunId);
-        }
-      });
-    });
   }
 
   window.Scorer.router.register('history', render);
