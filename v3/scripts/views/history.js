@@ -6,6 +6,8 @@ window.Scorer = window.Scorer || {};
   const state = {
     managerId: 'pa-ne',
     selectedRunId: null,
+    pickerDropdownOpen: false,
+    pickerDropdownQuery: '',
   };
 
   function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
@@ -136,11 +138,19 @@ window.Scorer = window.Scorer || {};
           <h1>${escapeHtml(m.name)} <span class="highlight">trend</span></h1>
         </div>
         <div class="chip-row">
-          ${managers.map(mm => `
-            <button class="chip" type="button" aria-pressed="${state.managerId === mm.id}" data-manager-pick="${mm.id}">
-              <span>${mm.state}</span><span class="chip__count">${rowsForManager(mm.id).length}</span>
-            </button>
-          `).join('')}
+          ${window.Scorer.MultiFilter.render({
+            kind: 'historypicker',
+            items: managers.map(mm => ({
+              key: mm.id,
+              label: mm.state + ' · ' + mm.name,
+              count: rowsForManager(mm.id).length,
+            })),
+            selected: state.managerId,
+            allLabel: 'None',
+            visibleCap: 5,
+            state: { open: state.pickerDropdownOpen, query: state.pickerDropdownQuery },
+            escapeHtml,
+          })}
         </div>
       </div>
 
@@ -197,13 +207,45 @@ window.Scorer = window.Scorer || {};
       </div>
     `;
 
-    root.querySelectorAll('[data-manager-pick]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.managerId = btn.dataset.managerPick;
-        state.selectedRunId = null;
+    window.Scorer.MultiFilter.wire({
+      root, kind: 'historypicker',
+      onToggle: v => {
+        if (state.managerId !== v) {
+          state.managerId = v;
+          state.selectedRunId = null;
+          render();
+        }
+      },
+      onClear: () => { /* no-op: history needs a manager picked */ },
+      onClearOther: () => { /* no-op for single-select */ },
+      onToggleDropdown: () => {
+        state.pickerDropdownOpen = !state.pickerDropdownOpen;
+        state.pickerDropdownQuery = '';
         render();
-      });
+      },
+      onSearch: q => {
+        state.pickerDropdownQuery = q;
+        render();
+        requestAnimationFrame(() => {
+          const el = root.querySelector('#historypicker-other-search');
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      },
     });
+
+    if (!window.__historyV3Outside) {
+      window.__historyV3Outside = ev => {
+        if (!state.pickerDropdownOpen) return;
+        const view = document.getElementById('view-history');
+        const el = view && view.querySelector('[data-historypicker-other]');
+        if (el && !el.contains(ev.target)) {
+          state.pickerDropdownOpen = false;
+          state.pickerDropdownQuery = '';
+          render();
+        }
+      };
+      document.addEventListener('click', window.__historyV3Outside);
+    }
 
     root.querySelectorAll('[data-run]').forEach(item => {
       item.addEventListener('click', () => {
