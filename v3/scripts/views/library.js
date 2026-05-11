@@ -83,7 +83,7 @@ window.Scorer = window.Scorer || {};
         <span class="list-item__body">
           <span class="list-item__name">${escapeHtml(m.name)}</span>
         </span>
-        <span></span>
+        <span class="list-item__trail" style="font-family: var(--font-mono); font-size: var(--fs-xxs); color: var(--text-tertiary); letter-spacing: var(--tracking-wide);">${m.regulationCount}r · ${m.ruleCount}</span>
       </button>
     `;
   }
@@ -258,14 +258,14 @@ window.Scorer = window.Scorer || {};
               </div>
             </div>
             ${state.filtersExpanded ? `
-              <div style="display:flex; flex-direction:column; gap:var(--space-2); padding-top:var(--space-2); border-top:1px solid var(--card-divider);">
-                <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap;">
-                  <span class="chip-group__label" style="margin:0; min-width:60px;">State</span>
-                  <div class="chip-row">${stateChipList}</div>
+              <div class="filter-panel">
+                <div class="filter-panel__row">
+                  <span class="filter-panel__label">State</span>
+                  <div class="chip-row chip-row--filter">${stateChipList}</div>
                 </div>
-                <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap;">
-                  <span class="chip-group__label" style="margin:0; min-width:60px;">Species</span>
-                  <div class="chip-row">${speciesChipList}</div>
+                <div class="filter-panel__row">
+                  <span class="filter-panel__label">Species</span>
+                  <div class="chip-row chip-row--filter">${speciesChipList}</div>
                 </div>
               </div>
             ` : ''}
