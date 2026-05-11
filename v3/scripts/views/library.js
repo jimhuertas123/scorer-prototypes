@@ -15,6 +15,14 @@ window.Scorer = window.Scorer || {};
     stateDropdownQuery: '',
     speciesDropdownOpen: false,
     speciesDropdownQuery: '',
+    filtersExpanded: false,
+    sortDropdownOpen: false,
+  };
+
+  const SORT_LABELS = {
+    recent: 'Recently curated',
+    alpha: 'A to Z',
+    rules: 'Largest first',
   };
 
   const FILTER_VISIBLE_CAP = 5;
@@ -74,9 +82,8 @@ window.Scorer = window.Scorer || {};
         <span class="list-item__seal">${m.state}</span>
         <span class="list-item__body">
           <span class="list-item__name">${escapeHtml(m.name)}</span>
-          <span class="list-item__meta">${m.species.slice(0, 3).join(' · ')}${m.species.length > 3 ? ' · +' + (m.species.length - 3) : ''} · ${m.regulationCount}r ${m.ruleCount} rules</span>
         </span>
-        <span class="list-item__trail">${relativeDate(m.lastCuratedAt)}</span>
+        <span></span>
       </button>
     `;
   }
@@ -227,8 +234,41 @@ window.Scorer = window.Scorer || {};
               <span class="search__icon">⌕</span>
               <input class="input" id="library-search" placeholder="Search by name, state, species..." value="${escapeHtml(state.query)}" />
             </div>
-            <div class="chip-row">${stateChipList}</div>
-            <div class="chip-row">${speciesChipList}</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2);">
+              <button type="button" data-action="toggle-filters" style="display:inline-flex; align-items:center; gap:var(--space-2); padding:0.3rem 0.5rem; background:transparent; border:1px solid transparent; border-radius:var(--radius-sm); color:var(--text-secondary); font-family:inherit; font-size:var(--fs-xs); cursor:pointer;">
+                <span style="font-family:var(--font-mono); width:10px; display:inline-block; transition:transform 150ms;">${state.filtersExpanded ? '▾' : '▸'}</span>
+                <span>Filters${(state.state.size + state.species.size) > 0 ? ' (' + (state.state.size + state.species.size) + ')' : ''}</span>
+              </button>
+              <div class="filter-sort" data-filter-sort style="position:relative;">
+                <button type="button" data-action="toggle-sort" style="display:inline-flex; align-items:center; gap:var(--space-2); padding:0.3rem 0.6rem; background:transparent; border:1px solid var(--card-border-strong); border-radius:var(--radius-sm); color:var(--text-secondary); font-family:inherit; font-size:var(--fs-xs); cursor:pointer;">
+                  <span style="font-family:var(--font-mono); font-size:var(--fs-xxs); color:var(--text-tertiary); text-transform:uppercase; letter-spacing:var(--tracking-wide);">Sort:</span>
+                  <span>${escapeHtml(SORT_LABELS[state.sort] || state.sort)}</span>
+                  <span style="font-family:var(--font-mono);">▾</span>
+                </button>
+                ${state.sortDropdownOpen ? `
+                  <div style="position:absolute; top:calc(100% + 4px); right:0; background:rgba(12,14,19,0.96); backdrop-filter:blur(12px); border:1px solid var(--card-border-strong); border-radius:var(--radius-sm); box-shadow:0 12px 32px rgba(0,0,0,0.5); z-index:30; min-width:180px; padding:var(--space-2);">
+                    ${Object.entries(SORT_LABELS).map(([k, lbl]) => `
+                      <button type="button" data-sort-pick="${k}" style="display:flex; justify-content:space-between; align-items:center; width:100%; padding:0.4rem 0.6rem; background:${state.sort === k ? 'var(--accent-soft)' : 'transparent'}; border:0; border-radius:var(--radius-sm); color:${state.sort === k ? 'var(--accent)' : 'var(--text-secondary)'}; font-family:inherit; font-size:var(--fs-xs); cursor:pointer; text-align:left;">
+                        <span>${escapeHtml(lbl)}</span>
+                        ${state.sort === k ? `<span style="font-family:var(--font-mono);">✓</span>` : ''}
+                      </button>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            ${state.filtersExpanded ? `
+              <div style="display:flex; flex-direction:column; gap:var(--space-2); padding-top:var(--space-2); border-top:1px solid var(--card-divider);">
+                <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap;">
+                  <span class="chip-group__label" style="margin:0; min-width:60px;">State</span>
+                  <div class="chip-row">${stateChipList}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap;">
+                  <span class="chip-group__label" style="margin:0; min-width:60px;">Species</span>
+                  <div class="chip-row">${speciesChipList}</div>
+                </div>
+              </div>
+            ` : ''}
           </div>
           <div class="inspector__pane-body">
             ${matches.length === 0 ? `
@@ -355,14 +395,45 @@ window.Scorer = window.Scorer || {};
     });
 
     root.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', e => {
         const action = btn.dataset.action;
         if (action === 'fork') router.navigate('create', { mode: 'fork' });
         if (action === 'new') router.navigate('create', { mode: 'blank' });
         if (action === 'score-with') router.navigate('score', { manager: btn.dataset.id });
         if (action === 'edit') router.navigate('create', { mode: 'fork' });
+        if (action === 'toggle-filters') {
+          state.filtersExpanded = !state.filtersExpanded;
+          render();
+        }
+        if (action === 'toggle-sort') {
+          e.stopPropagation();
+          state.sortDropdownOpen = !state.sortDropdownOpen;
+          render();
+        }
       });
     });
+
+    root.querySelectorAll('[data-sort-pick]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        state.sort = btn.dataset.sortPick;
+        state.sortDropdownOpen = false;
+        render();
+      });
+    });
+
+    if (!window.__librarySortOutside) {
+      window.__librarySortOutside = ev => {
+        if (!state.sortDropdownOpen) return;
+        const view = document.getElementById('view-library');
+        const el = view && view.querySelector('[data-filter-sort]');
+        if (el && !el.contains(ev.target)) {
+          state.sortDropdownOpen = false;
+          render();
+        }
+      };
+      document.addEventListener('click', window.__librarySortOutside);
+    }
   }
 
   window.Scorer.router.register('library', render);
